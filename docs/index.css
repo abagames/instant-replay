@@ -1,0 +1,44 @@
+body {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: #222;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;    
+  background: #222;
+  color: #eee;
+  text-align: center;
+}
+
+canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);  
+}
+
+canvas#main {
+  width: 80vmin;
+  height: 80vmin;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -o-crisp-edges;
+  image-rendering: pixelated;
+  z-index: 1;
+}
+
+canvas#bloom {
+  width: 85vmin;
+  height: 85vmin;
+  z-index: 2;
+}
+
+canvas#overlay {
+  width: 80vmin;
+  height: 80vmin;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -o-crisp-edges;
+  image-rendering: pixelated;
+  z-index: 3;
+}
