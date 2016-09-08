@@ -1,7 +1,7 @@
 {
   "name": "instant-replay",
   "version": "1.0.0",
-  "description": "store and replay a gameplay",
+  "description": "record and replay a gameplay",
   "author": "ABA",
   "license": "MIT",
   "devDependencies": {
