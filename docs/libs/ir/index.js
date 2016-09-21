@@ -65,8 +65,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.options = {
 	    frameCount: 180,
 	};
-	var statuses = [];
-	var events = [];
+	var statusAndEvents = times(exports.options.frameCount, function () { return null; });
+	var recordingIndex = 0;
+	var replayingIndex = 0;
+	function record(status, events) {
+	    statusAndEvents[recordingIndex] = { status: status, events: events };
+	    recordingIndex++;
+	    if (recordingIndex >= exports.options.frameCount) {
+	        recordingIndex = 0;
+	    }
+	}
+	exports.record = record;
+	function startReplay() {
+	    replayingIndex = recordingIndex + 1;
+	    if (replayingIndex >= exports.options.frameCount || statusAndEvents[replayingIndex] == null) {
+	        replayingIndex = 0;
+	    }
+	    return statusAndEvents[replayingIndex].status;
+	}
+	exports.startReplay = startReplay;
+	function getEvents() {
+	    if (replayingIndex === recordingIndex) {
+	        return null;
+	    }
+	    var e = statusAndEvents[replayingIndex].events;
+	    replayingIndex++;
+	    if (replayingIndex >= exports.options.frameCount) {
+	        replayingIndex = 0;
+	    }
+	    return e;
+	}
+	exports.getEvents = getEvents;
+	function times(n, fn) {
+	    var v = [];
+	    for (var i = 0; i < n; i++) {
+	        v.push(fn());
+	    }
+	    return v;
+	}
 
 
 /***/ }

@@ -5,6 +5,7 @@ import * as ppe from 'ppe';
 
 let isInGame = false;
 const rotationNum = 16;
+const pixelWidth = 128;
 let actors = [];
 let player: any = null;
 let ticks = 0;
@@ -16,26 +17,63 @@ let overlayCanvas: HTMLCanvasElement;
 let context: CanvasRenderingContext2D;
 let bloomContext: CanvasRenderingContext2D;
 let overlayContext: CanvasRenderingContext2D;
+let cursorPos = { x: 0, y: 0 };
+
 window.onload = () => {
   sss.init();
   debug.enableShowingErrors()
   debug.initSeedUi(onSeedChanged);
   canvas = <HTMLCanvasElement>document.getElementById('main');
-  canvas.width = canvas.height = 128;
+  canvas.width = canvas.height = pixelWidth;
   ppe.options.canvas = canvas;
+  console.log(canvas.offsetLeft - canvas.clientWidth / 2);
   context = canvas.getContext('2d');
   bloomCanvas = <HTMLCanvasElement>document.getElementById('bloom');
-  bloomCanvas.width = canvas.height = 64;
+  bloomCanvas.width = canvas.height = pixelWidth / 2;
   bloomContext = bloomCanvas.getContext('2d');
   overlayCanvas = <HTMLCanvasElement>document.getElementById('overlay');
-  overlayCanvas.width = canvas.height = 128
+  overlayCanvas.width = canvas.height = pixelWidth;
   overlayContext = overlayCanvas.getContext('2d');
   pag.defaultOptions.isMirrorY = true;
   pag.defaultOptions.rotationNum = rotationNum;
   pag.defaultOptions.scale = 2;
-    setPlayer();
+  setPlayer();
+  document.onmousedown = (e) => {
+    onMouseTouchDown(e.pageX, e.pageY);
+  };
+  document.ontouchstart = (e) => {
+    onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
+  };
+  document.onmousemove = (e) => {
+    onMouseTouchMove(e.pageX, e.pageY);
+  };
+  document.ontouchmove = (e) => {
+    e.preventDefault();
+    onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
+  };
+  document.onmouseup = (e) => {
+    onMouseTouchUp(e);
+  };
+  document.ontouchend = (e) => {
+    onMouseTouchUp(e);
+  };
   update();
 };
+
+function onMouseTouchDown(x, y) {
+  cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
+  cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+  handleTouchStarted();
+}
+
+function onMouseTouchMove(x, y) {
+  cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
+  cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+}
+
+function onMouseTouchUp(e) {
+}
+
 function handleTouchStarted() {
   sss.playEmpty();
   if (!isInGame && ticks > 0) {
@@ -45,10 +83,8 @@ function handleTouchStarted() {
     actors = [];
     setPlayer();
   }
-};
-function handleTouchtouchMoved() {
-  return false;
-};
+}
+
 function update() {
   requestAnimationFrame(update);
   sss.update();
@@ -71,6 +107,7 @@ function update() {
   }
   ticks++;
 };
+
 function setPlayer() {
   if (player != null) {
     player.isAlive = false;
@@ -84,11 +121,14 @@ function setPlayer() {
   player.vel = { x: 0, y: 0 };
   player.angle = -Math.PI / 2;
   player.update = function () {
+    player.pos.x = cursorPos.x;
+    player.pos.y = cursorPos.y;
     ppe.emit('j1', player.pos.x, player.pos.y, player.angle + Math.PI);
   };
   player.priority = 0;
   actors.push(player);
 };
+
 function drawPixels(actor) {
   let a = actor.angle;
   if (a < 0) {
@@ -110,6 +150,7 @@ function drawPixels(actor) {
     }
   }
 }
+
 function getActors(name: string) {
   let result = [];
   forEach(actors, a => {
@@ -119,12 +160,14 @@ function getActors(name: string) {
   });
   return result;
 }
+
 function forEach(array: any[], func: Function) {
   for (let i = 0; i < array.length; i++) {
     func(array[i]);
   }
 }
-const onSeedChanged = (seed: number) => {
+
+function onSeedChanged(seed: number) {
   pag.setSeed(seed);
   sss.reset();
   sss.setSeed(seed);

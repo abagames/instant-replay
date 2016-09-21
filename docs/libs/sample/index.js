@@ -67,8 +67,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.options = {
 	    frameCount: 180,
 	};
-	var statuses = [];
-	var events = [];
+	var statusAndEvents = times(exports.options.frameCount, function () { return null; });
+	var recordingIndex = 0;
+	var replayingIndex = 0;
+	function record(status, events) {
+	    statusAndEvents[recordingIndex] = { status: status, events: events };
+	    recordingIndex++;
+	    if (recordingIndex >= exports.options.frameCount) {
+	        recordingIndex = 0;
+	    }
+	}
+	exports.record = record;
+	function startReplay() {
+	    replayingIndex = recordingIndex + 1;
+	    if (replayingIndex >= exports.options.frameCount || statusAndEvents[replayingIndex] == null) {
+	        replayingIndex = 0;
+	    }
+	    return statusAndEvents[replayingIndex].status;
+	}
+	exports.startReplay = startReplay;
+	function getEvents() {
+	    if (replayingIndex === recordingIndex) {
+	        return null;
+	    }
+	    var e = statusAndEvents[replayingIndex].events;
+	    replayingIndex++;
+	    if (replayingIndex >= exports.options.frameCount) {
+	        replayingIndex = 0;
+	    }
+	    return e;
+	}
+	exports.getEvents = getEvents;
+	function times(n, fn) {
+	    var v = [];
+	    for (var i = 0; i < n; i++) {
+	        v.push(fn());
+	    }
+	    return v;
+	}
 
 
 /***/ },
@@ -119,6 +155,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var ppe = __webpack_require__(6);
 	var isInGame = false;
 	var rotationNum = 16;
+	var pixelWidth = 128;
 	var actors = [];
 	var player = null;
 	var ticks = 0;
@@ -130,26 +167,58 @@ return /******/ (function(modules) { // webpackBootstrap
 	var context;
 	var bloomContext;
 	var overlayContext;
+	var cursorPos = { x: 0, y: 0 };
 	window.onload = function () {
 	    sss.init();
 	    debug.enableShowingErrors();
 	    debug.initSeedUi(onSeedChanged);
 	    canvas = document.getElementById('main');
-	    canvas.width = canvas.height = 128;
+	    canvas.width = canvas.height = pixelWidth;
 	    ppe.options.canvas = canvas;
+	    console.log(canvas.offsetLeft - canvas.clientWidth / 2);
 	    context = canvas.getContext('2d');
 	    bloomCanvas = document.getElementById('bloom');
-	    bloomCanvas.width = canvas.height = 64;
+	    bloomCanvas.width = canvas.height = pixelWidth / 2;
 	    bloomContext = bloomCanvas.getContext('2d');
 	    overlayCanvas = document.getElementById('overlay');
-	    overlayCanvas.width = canvas.height = 128;
+	    overlayCanvas.width = canvas.height = pixelWidth;
 	    overlayContext = overlayCanvas.getContext('2d');
 	    pag.defaultOptions.isMirrorY = true;
 	    pag.defaultOptions.rotationNum = rotationNum;
 	    pag.defaultOptions.scale = 2;
 	    setPlayer();
+	    document.onmousedown = function (e) {
+	        onMouseTouchDown(e.pageX, e.pageY);
+	    };
+	    document.ontouchstart = function (e) {
+	        onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
+	    };
+	    document.onmousemove = function (e) {
+	        onMouseTouchMove(e.pageX, e.pageY);
+	    };
+	    document.ontouchmove = function (e) {
+	        e.preventDefault();
+	        onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
+	    };
+	    document.onmouseup = function (e) {
+	        onMouseTouchUp(e);
+	    };
+	    document.ontouchend = function (e) {
+	        onMouseTouchUp(e);
+	    };
 	    update();
 	};
+	function onMouseTouchDown(x, y) {
+	    cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
+	    cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+	    handleTouchStarted();
+	}
+	function onMouseTouchMove(x, y) {
+	    cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
+	    cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+	}
+	function onMouseTouchUp(e) {
+	}
 	function handleTouchStarted() {
 	    sss.playEmpty();
 	    if (!isInGame && ticks > 0) {
@@ -160,11 +229,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        setPlayer();
 	    }
 	}
-	;
-	function handleTouchtouchMoved() {
-	    return false;
-	}
-	;
 	function update() {
 	    requestAnimationFrame(update);
 	    sss.update();
@@ -202,6 +266,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    player.vel = { x: 0, y: 0 };
 	    player.angle = -Math.PI / 2;
 	    player.update = function () {
+	        player.pos.x = cursorPos.x;
+	        player.pos.y = cursorPos.y;
 	        ppe.emit('j1', player.pos.x, player.pos.y, player.angle + Math.PI);
 	    };
 	    player.priority = 0;
@@ -242,7 +308,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        func(array[i]);
 	    }
 	}
-	var onSeedChanged = function (seed) {
+	function onSeedChanged(seed) {
 	    pag.setSeed(seed);
 	    sss.reset();
 	    sss.setSeed(seed);
@@ -251,7 +317,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (isInGame) {
 	        sss.playBgm();
 	    }
-	};
+	}
 
 
 /***/ },
