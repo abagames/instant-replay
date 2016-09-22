@@ -18,6 +18,7 @@ let context: CanvasRenderingContext2D;
 let bloomContext: CanvasRenderingContext2D;
 let overlayContext: CanvasRenderingContext2D;
 let cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+let random: Random;
 
 window.onload = () => {
   sss.init();
@@ -36,6 +37,7 @@ window.onload = () => {
   pag.defaultOptions.isMirrorY = true;
   pag.defaultOptions.rotationNum = rotationNum;
   pag.defaultOptions.scale = 2;
+  random = new Random();
   setPlayer();
   document.onmousedown = (e) => {
     onMouseTouchDown(e.pageX, e.pageY);
@@ -98,7 +100,7 @@ function update() {
   context.fillRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
-  if (Math.random() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+  if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
   }
   ppe.update();
@@ -147,10 +149,10 @@ function setPlayer() {
 
 function setLaser() {
   const laser: any = {};
-  laser.isVertical = Math.random() > 0.5;
-  laser.pos = { x: Math.random() * pixelWidth, y: Math.random() * pixelWidth };
+  laser.isVertical = random.get01() > 0.5;
+  laser.pos = random.get01() * pixelWidth;
   laser.ticks = 0;
-  laser.update = function() {
+  laser.update = function () {
     let w = 0;
     let br = 0;
     if (this.ticks < 20) {
@@ -164,9 +166,9 @@ function setLaser() {
     const b = Math.floor(200 + br * 50)
     context.fillStyle = `rgb(${rg},${rg},${b})`;
     if (this.isVertical) {
-      context.fillRect(this.pos.x - w / 2, 0, w, pixelWidth);
+      context.fillRect(this.pos - w / 2, 0, w, pixelWidth);
     } else {
-      context.fillRect(0, this.pos.y - w / 2, pixelWidth, w);
+      context.fillRect(0, this.pos - w / 2, pixelWidth, w);
     }
     if (this.ticks === 20) {
       let a = Math.floor(Math.random() * 2) * Math.PI;
@@ -176,11 +178,11 @@ function setLaser() {
       for (let i = 0; i < 18; i++) {
         let x, y;
         if (this.isVertical) {
-          x = this.pos.x;
+          x = this.pos;
           y = (i - 1) * pixelWidth / 16;
         } else {
           x = (i - 1) * pixelWidth / 16;
-          y = this.pos.y;
+          y = this.pos;
         }
         ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
       }
@@ -263,5 +265,41 @@ function wrap(v, min, max) {
     return o % w + min;
   } else {
     return w + o % w + min;
+  }
+}
+
+class Random {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+
+  setSeed(v: number = -0x7fffffff) {
+    if (v === -0x7fffffff) {
+      v = Math.floor(Math.random() * 0x7fffffff);
+    }
+    this.x = v = 1812433253 * (v ^ (v >> 30))
+    this.y = v = 1812433253 * (v ^ (v >> 30)) + 1
+    this.z = v = 1812433253 * (v ^ (v >> 30)) + 2
+    this.w = v = 1812433253 * (v ^ (v >> 30)) + 3;
+    return this;
+  }
+
+  getInt() {
+    var t = this.x ^ (this.x << 11);
+    this.x = this.y;
+    this.y = this.z;
+    this.z = this.w;
+    this.w = (this.w ^ (this.w >> 19)) ^ (t ^ (t >> 8));
+    return this.w;
+  }
+
+  get01() {
+    return this.getInt() / 0x7fffffff;
+  }
+
+  constructor() {
+    this.setSeed();
+    this.get01 = this.get01.bind(this);
   }
 }
