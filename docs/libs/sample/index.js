@@ -168,6 +168,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var bloomContext;
 	var overlayContext;
 	var cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+	var random;
 	window.onload = function () {
 	    sss.init();
 	    debug.enableShowingErrors();
@@ -175,7 +176,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    canvas = document.getElementById('main');
 	    canvas.width = canvas.height = pixelWidth;
 	    ppe.options.canvas = canvas;
-	    console.log(canvas.offsetLeft - canvas.clientWidth / 2);
 	    context = canvas.getContext('2d');
 	    bloomCanvas = document.getElementById('bloom');
 	    bloomCanvas.width = canvas.height = pixelWidth / 2;
@@ -186,6 +186,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    pag.defaultOptions.isMirrorY = true;
 	    pag.defaultOptions.rotationNum = rotationNum;
 	    pag.defaultOptions.scale = 2;
+	    random = new Random();
 	    setPlayer();
 	    document.onmousedown = function (e) {
 	        onMouseTouchDown(e.pageX, e.pageY);
@@ -238,7 +239,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    context.fillRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
-	    if (Math.random() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+	    if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
 	        setLaser();
 	    }
 	    ppe.update();
@@ -282,14 +283,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.ppos.y = this.pos.y;
 	        ppe.emit('j1', this.pos.x, this.pos.y, this.angle + Math.PI);
 	    };
+	    player.destroy = function () {
+	        ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
+	        player.isAlive = false;
+	    };
 	    player.priority = 0;
 	    actors.push(player);
 	}
 	;
 	function setLaser() {
 	    var laser = {};
-	    laser.isVertical = Math.random() > 0.5;
-	    laser.pos = { x: Math.random() * pixelWidth, y: Math.random() * pixelWidth };
+	    laser.isVertical = random.get01() > 0.5;
+	    laser.pos = random.get01() * pixelWidth;
 	    laser.ticks = 0;
 	    laser.update = function () {
 	        var w = 0;
@@ -306,10 +311,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var b = Math.floor(200 + br * 50);
 	        context.fillStyle = "rgb(" + rg + "," + rg + "," + b + ")";
 	        if (this.isVertical) {
-	            context.fillRect(this.pos.x - w / 2, 0, w, pixelWidth);
+	            context.fillRect(this.pos - w / 2, 0, w, pixelWidth);
 	        }
 	        else {
-	            context.fillRect(0, this.pos.y - w / 2, pixelWidth, w);
+	            context.fillRect(0, this.pos - w / 2, pixelWidth, w);
+	        }
+	        if (this.ticks === 20) {
+	            var a = Math.floor(Math.random() * 2) * Math.PI;
+	            if (this.isVertical) {
+	                a += Math.PI / 2;
+	            }
+	            for (var i = 0; i < 18; i++) {
+	                var x = void 0, y = void 0;
+	                if (this.isVertical) {
+	                    x = this.pos;
+	                    y = (i - 1) * pixelWidth / 16;
+	                }
+	                else {
+	                    x = (i - 1) * pixelWidth / 16;
+	                    y = this.pos;
+	                }
+	                ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
+	            }
+	            if (player.isAlive !== false) {
+	                var pp = this.isVertical ? player.pos.x : player.pos.y;
+	                if (Math.abs(this.pos - pp) < 10) {
+	                    player.destroy();
+	                }
+	            }
 	        }
 	        laser.ticks++;
 	        if (laser.ticks > 30) {
@@ -387,6 +416,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return w + o % w + min;
 	    }
 	}
+	var Random = (function () {
+	    function Random() {
+	        this.setSeed();
+	        this.get01 = this.get01.bind(this);
+	    }
+	    Random.prototype.setSeed = function (v) {
+	        if (v === void 0) { v = -0x7fffffff; }
+	        if (v === -0x7fffffff) {
+	            v = Math.floor(Math.random() * 0x7fffffff);
+	        }
+	        this.x = v = 1812433253 * (v ^ (v >> 30));
+	        this.y = v = 1812433253 * (v ^ (v >> 30)) + 1;
+	        this.z = v = 1812433253 * (v ^ (v >> 30)) + 2;
+	        this.w = v = 1812433253 * (v ^ (v >> 30)) + 3;
+	        return this;
+	    };
+	    Random.prototype.getInt = function () {
+	        var t = this.x ^ (this.x << 11);
+	        this.x = this.y;
+	        this.y = this.z;
+	        this.z = this.w;
+	        this.w = (this.w ^ (this.w >> 19)) ^ (t ^ (t >> 8));
+	        return this.w;
+	    };
+	    Random.prototype.get01 = function () {
+	        return this.getInt() / 0x7fffffff;
+	    };
+	    return Random;
+	}());
 
 
 /***/ },

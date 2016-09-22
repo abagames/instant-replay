@@ -143,6 +143,10 @@ function setPlayer() {
     this.ppos.y = this.pos.y;
     ppe.emit('j1', this.pos.x, this.pos.y, this.angle + Math.PI);
   };
+  player.destroy = function () {
+    ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
+    player.isAlive = false;
+  };
   player.priority = 0;
   actors.push(player);
 };
@@ -185,6 +189,12 @@ function setLaser() {
           y = this.pos;
         }
         ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
+      }
+      if (player.isAlive !== false) {
+        let pp = this.isVertical ? player.pos.x : player.pos.y;
+        if (Math.abs(this.pos - pp) < 10) {
+          player.destroy();
+        }
       }
     }
     laser.ticks++;
