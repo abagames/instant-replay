@@ -17,7 +17,7 @@ let overlayCanvas: HTMLCanvasElement;
 let context: CanvasRenderingContext2D;
 let bloomContext: CanvasRenderingContext2D;
 let overlayContext: CanvasRenderingContext2D;
-let cursorPos = { x: 0, y: 0 };
+let cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 
 window.onload = () => {
   sss.init();
@@ -61,14 +61,21 @@ window.onload = () => {
 };
 
 function onMouseTouchDown(x, y) {
-  cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
-  cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+  setCursorPos(x, y);
   handleTouchStarted();
 }
 
 function onMouseTouchMove(x, y) {
-  cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
-  cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+  setCursorPos(x, y);
+}
+
+function setCursorPos(x, y) {
+  cursorPos.x = clamp(Math.round
+    (((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth),
+    0, pixelWidth - 1);
+  cursorPos.y = clamp(Math.round
+    (((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth),
+    0, pixelWidth - 1);
 }
 
 function onMouseTouchUp(e) {
@@ -117,12 +124,19 @@ function setPlayer() {
     ' x',
     'xxxx'
   ]);
-  player.pos = { x: 64, y: 64 };
-  player.vel = { x: 0, y: 0 };
+  player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+  player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
   player.angle = -Math.PI / 2;
   player.update = function () {
     player.pos.x = cursorPos.x;
     player.pos.y = cursorPos.y;
+    const ox = player.pos.x - player.ppos.x;
+    const oy = player.pos.y - player.ppos.y;
+    if (Math.sqrt(ox * ox + oy * oy) > 1) {
+      player.angle = Math.atan2(oy, ox);
+    }
+    player.ppos.x = player.pos.x;
+    player.ppos.y = player.pos.y;
     ppe.emit('j1', player.pos.x, player.pos.y, player.angle + Math.PI);
   };
   player.priority = 0;
@@ -161,12 +175,6 @@ function getActors(name: string) {
   return result;
 }
 
-function forEach(array: any[], func: Function) {
-  for (let i = 0; i < array.length; i++) {
-    func(array[i]);
-  }
-}
-
 function onSeedChanged(seed: number) {
   pag.setSeed(seed);
   sss.reset();
@@ -175,5 +183,31 @@ function onSeedChanged(seed: number) {
   ppe.reset();
   if (isInGame) {
     sss.playBgm();
+  }
+}
+
+function forEach(array: any[], func: Function) {
+  for (let i = 0; i < array.length; i++) {
+    func(array[i]);
+  }
+}
+
+function clamp(v, min, max) {
+  if (v < min) {
+    return min;
+  } else if (v > max) {
+    return max;
+  } else {
+    return v;
+  }
+}
+
+function wrap(v, min, max) {
+  const w = max - min;
+  const o = v - min;
+  if (o >= 0) {
+    return o % w + min;
+  } else {
+    return w + o % w + min;
   }
 }
