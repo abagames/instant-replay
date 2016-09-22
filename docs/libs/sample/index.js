@@ -167,7 +167,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var context;
 	var bloomContext;
 	var overlayContext;
-	var cursorPos = { x: 0, y: 0 };
+	var cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	window.onload = function () {
 	    sss.init();
 	    debug.enableShowingErrors();
@@ -209,13 +209,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    update();
 	};
 	function onMouseTouchDown(x, y) {
-	    cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
-	    cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+	    setCursorPos(x, y);
 	    handleTouchStarted();
 	}
 	function onMouseTouchMove(x, y) {
-	    cursorPos.x = ((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth;
-	    cursorPos.y = ((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth;
+	    setCursorPos(x, y);
+	}
+	function setCursorPos(x, y) {
+	    cursorPos.x = clamp(Math.round(((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth), 0, pixelWidth - 1);
+	    cursorPos.y = clamp(Math.round(((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth), 0, pixelWidth - 1);
 	}
 	function onMouseTouchUp(e) {
 	}
@@ -236,6 +238,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    context.fillRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
+	    if (Math.random() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+	        setLaser();
+	    }
 	    ppe.update();
 	    actors.sort(function (a, b) { return a.priority - b.priority; });
 	    forEach(actors, function (a) {
@@ -262,19 +267,62 @@ return /******/ (function(modules) { // webpackBootstrap
 	        ' x',
 	        'xxxx'
 	    ]);
-	    player.pos = { x: 64, y: 64 };
-	    player.vel = { x: 0, y: 0 };
+	    player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+	    player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	    player.angle = -Math.PI / 2;
 	    player.update = function () {
-	        player.pos.x = cursorPos.x;
-	        player.pos.y = cursorPos.y;
-	        ppe.emit('j1', player.pos.x, player.pos.y, player.angle + Math.PI);
+	        this.pos.x = cursorPos.x;
+	        this.pos.y = cursorPos.y;
+	        var ox = this.pos.x - this.ppos.x;
+	        var oy = this.pos.y - this.ppos.y;
+	        if (Math.sqrt(ox * ox + oy * oy) > 1) {
+	            this.angle = Math.atan2(oy, ox);
+	        }
+	        this.ppos.x = this.pos.x;
+	        this.ppos.y = this.pos.y;
+	        ppe.emit('j1', this.pos.x, this.pos.y, this.angle + Math.PI);
 	    };
 	    player.priority = 0;
 	    actors.push(player);
 	}
 	;
+	function setLaser() {
+	    var laser = {};
+	    laser.isVertical = Math.random() > 0.5;
+	    laser.pos = { x: Math.random() * pixelWidth, y: Math.random() * pixelWidth };
+	    laser.ticks = 0;
+	    laser.update = function () {
+	        var w = 0;
+	        var br = 0;
+	        if (this.ticks < 20) {
+	            w = 2 + laser.ticks * 0.2;
+	            br = this.ticks / 50;
+	        }
+	        else if (this.ticks < 30) {
+	            w = 20 - (this.ticks - 20);
+	            br = 1 - (this.ticks - 20) / 20;
+	        }
+	        var rg = Math.floor(50 + br * 200);
+	        var b = Math.floor(200 + br * 50);
+	        context.fillStyle = "rgb(" + rg + "," + rg + "," + b + ")";
+	        if (this.isVertical) {
+	            context.fillRect(this.pos.x - w / 2, 0, w, pixelWidth);
+	        }
+	        else {
+	            context.fillRect(0, this.pos.y - w / 2, pixelWidth, w);
+	        }
+	        laser.ticks++;
+	        if (laser.ticks > 30) {
+	            laser.isAlive = false;
+	        }
+	    };
+	    laser.priority = 1;
+	    actors.push(laser);
+	}
 	function drawPixels(actor) {
+	    if (!actor.hasOwnProperty('pixels')) {
+	        return;
+	    }
 	    var a = actor.angle;
 	    if (a < 0) {
 	        a = Math.PI * 2 - Math.abs(a % (Math.PI * 2));
@@ -303,11 +351,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    });
 	    return result;
 	}
-	function forEach(array, func) {
-	    for (var i = 0; i < array.length; i++) {
-	        func(array[i]);
-	    }
-	}
 	function onSeedChanged(seed) {
 	    pag.setSeed(seed);
 	    sss.reset();
@@ -316,6 +359,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ppe.reset();
 	    if (isInGame) {
 	        sss.playBgm();
+	    }
+	}
+	function forEach(array, func) {
+	    for (var i = 0; i < array.length; i++) {
+	        func(array[i]);
+	    }
+	}
+	function clamp(v, min, max) {
+	    if (v < min) {
+	        return min;
+	    }
+	    else if (v > max) {
+	        return max;
+	    }
+	    else {
+	        return v;
+	    }
+	}
+	function wrap(v, min, max) {
+	    var w = max - min;
+	    var o = v - min;
+	    if (o >= 0) {
+	        return o % w + min;
+	    }
+	    else {
+	        return w + o % w + min;
 	    }
 	}
 

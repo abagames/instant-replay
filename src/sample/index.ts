@@ -99,6 +99,9 @@ function update() {
   context.fillRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
+  if (Math.random() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+    setLaser();
+  }
   ppe.update();
   actors.sort((a, b) => a.priority - b.priority);
   forEach(actors, a => {
@@ -128,22 +131,57 @@ function setPlayer() {
   player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
   player.angle = -Math.PI / 2;
   player.update = function () {
-    player.pos.x = cursorPos.x;
-    player.pos.y = cursorPos.y;
-    const ox = player.pos.x - player.ppos.x;
-    const oy = player.pos.y - player.ppos.y;
+    this.pos.x = cursorPos.x;
+    this.pos.y = cursorPos.y;
+    const ox = this.pos.x - this.ppos.x;
+    const oy = this.pos.y - this.ppos.y;
     if (Math.sqrt(ox * ox + oy * oy) > 1) {
-      player.angle = Math.atan2(oy, ox);
+      this.angle = Math.atan2(oy, ox);
     }
-    player.ppos.x = player.pos.x;
-    player.ppos.y = player.pos.y;
-    ppe.emit('j1', player.pos.x, player.pos.y, player.angle + Math.PI);
+    this.ppos.x = this.pos.x;
+    this.ppos.y = this.pos.y;
+    ppe.emit('j1', this.pos.x, this.pos.y, this.angle + Math.PI);
   };
   player.priority = 0;
   actors.push(player);
 };
 
+function setLaser() {
+  const laser: any = {};
+  laser.isVertical = Math.random() > 0.5;
+  laser.pos = { x: Math.random() * pixelWidth, y: Math.random() * pixelWidth };
+  laser.ticks = 0;
+  laser.update = function() {
+    let w = 0;
+    let br = 0;
+    if (this.ticks < 20) {
+      w = 2 + laser.ticks * 0.2;
+      br = this.ticks / 50;
+    } else if (this.ticks < 30) {
+      w = 20 - (this.ticks - 20);
+      br = 1 - (this.ticks - 20) / 20;
+    }
+    const rg = Math.floor(50 + br * 200);
+    const b = Math.floor(200 + br * 50)
+    context.fillStyle = `rgb(${rg},${rg},${b})`;
+    if (this.isVertical) {
+      context.fillRect(this.pos.x - w / 2, 0, w, pixelWidth);
+    } else {
+      context.fillRect(0, this.pos.y - w / 2, pixelWidth, w);
+    }
+    laser.ticks++;
+    if (laser.ticks > 30) {
+      laser.isAlive = false;
+    }
+  };
+  laser.priority = 1;
+  actors.push(laser);
+}
+
 function drawPixels(actor) {
+  if (!actor.hasOwnProperty('pixels')) {
+    return;
+  }
   let a = actor.angle;
   if (a < 0) {
     a = Math.PI * 2 - Math.abs(a % (Math.PI * 2));
