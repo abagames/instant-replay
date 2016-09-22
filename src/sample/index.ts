@@ -26,7 +26,6 @@ window.onload = () => {
   canvas = <HTMLCanvasElement>document.getElementById('main');
   canvas.width = canvas.height = pixelWidth;
   ppe.options.canvas = canvas;
-  console.log(canvas.offsetLeft - canvas.clientWidth / 2);
   context = canvas.getContext('2d');
   bloomCanvas = <HTMLCanvasElement>document.getElementById('bloom');
   bloomCanvas.width = canvas.height = pixelWidth / 2;
@@ -168,6 +167,23 @@ function setLaser() {
       context.fillRect(this.pos.x - w / 2, 0, w, pixelWidth);
     } else {
       context.fillRect(0, this.pos.y - w / 2, pixelWidth, w);
+    }
+    if (this.ticks === 20) {
+      let a = Math.floor(Math.random() * 2) * Math.PI;
+      if (this.isVertical) {
+        a += Math.PI / 2;
+      }
+      for (let i = 0; i < 18; i++) {
+        let x, y;
+        if (this.isVertical) {
+          x = this.pos.x;
+          y = (i - 1) * pixelWidth / 16;
+        } else {
+          x = (i - 1) * pixelWidth / 16;
+          y = this.pos.y;
+        }
+        ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
+      }
     }
     laser.ticks++;
     if (laser.ticks > 30) {
