@@ -56,7 +56,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(1);
 	__webpack_require__(2);
-	module.exports = __webpack_require__(3);
+	__webpack_require__(3);
+	module.exports = __webpack_require__(7);
 
 
 /***/ },
@@ -149,10 +150,11 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var debug = __webpack_require__(2);
 	var sss = __webpack_require__(4);
 	var pag = __webpack_require__(5);
 	var ppe = __webpack_require__(6);
+	var debug = __webpack_require__(2);
+	var text = __webpack_require__(7);
 	var isInGame = false;
 	var rotationNum = 16;
 	var pixelWidth = 128;
@@ -187,6 +189,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    pag.defaultOptions.rotationNum = rotationNum;
 	    pag.defaultOptions.scale = 2;
 	    random = new Random();
+	    overlayContext.fillStyle = 'white';
+	    text.init(overlayContext);
 	    setPlayer();
 	    document.onmousedown = function (e) {
 	        onMouseTouchDown(e.pageX, e.pageY);
@@ -239,7 +243,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    context.fillRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
-	    if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+	    if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
 	        setLaser();
 	    }
 	    ppe.update();
@@ -256,6 +260,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            i++;
 	        }
 	    }
+	    text.draw("" + score, 1, 1);
 	    ticks++;
 	}
 	;
@@ -2857,6 +2862,93 @@ return /******/ (function(modules) { // webpackBootstrap
 	/******/ ])
 	});
 	;
+
+/***/ },
+/* 7 */
+/***/ function(module, exports) {
+
+	"use strict";
+	var dotPatterns;
+	var charToIndex;
+	var context;
+	function init(_context) {
+	    context = _context;
+	    var letterCount = 66;
+	    var letterPatterns = [
+	        0x4644AAA4, 0x6F2496E4, 0xF5646949, 0x167871F4, 0x2489F697,
+	        0xE9669696, 0x79F99668, 0x91967979, 0x1F799976, 0x1171FF17,
+	        0xF99ED196, 0xEE444E99, 0x53592544, 0xF9F11119, 0x9DDB9999,
+	        0x79769996, 0x7ED99611, 0x861E9979, 0x994444E7, 0x46699699,
+	        0x6996FD99, 0xF4469999, 0x2224F248, 0x26244424, 0x64446622,
+	        0x84284248, 0x40F0F024, 0x0F0044E4, 0x480A4E40, 0x9A459124,
+	        0x000A5A16, 0x640444F0, 0x80004049, 0x40400004, 0x44444040,
+	        0x0AA00044, 0x6476E400, 0xFAFA61D9, 0xE44E4EAA, 0x24F42445,
+	        0xF244E544, 0x00000042
+	    ];
+	    var p = 0;
+	    var d = 32;
+	    var pIndex = 0;
+	    dotPatterns = [];
+	    for (var i = 0; i < letterCount; i++) {
+	        var dots = [];
+	        for (var y = 0; y < 5; y++) {
+	            for (var x = 0; x < 4; x++) {
+	                if (++d >= 32) {
+	                    p = letterPatterns[pIndex++];
+	                    d = 0;
+	                }
+	                if ((p & 1) > 0) {
+	                    dots.push({ x: x, y: y });
+	                }
+	                p >>= 1;
+	            }
+	        }
+	        dotPatterns.push(dots);
+	    }
+	    var charStr = "()[]<>=+-*/%&_!?,.:|'\"$@#\\urdl";
+	    charToIndex = [];
+	    for (var c = 0; c < 128; c++) {
+	        var li = -2;
+	        if (c == 32) {
+	            li = -1;
+	        }
+	        else if (c >= 48 && c < 58) {
+	            li = c - 48;
+	        }
+	        else if (c >= 65 && c < 90) {
+	            li = c - 65 + 10;
+	        }
+	        else {
+	            var ci = charStr.indexOf(String.fromCharCode(c));
+	            if (ci >= 0) {
+	                li = ci + 36;
+	            }
+	        }
+	        charToIndex.push(li);
+	    }
+	}
+	exports.init = init;
+	function draw(str, x, y) {
+	    for (var i = 0; i < str.length; i++) {
+	        var idx = charToIndex[str.charCodeAt(i)];
+	        if (idx === -2) {
+	            throw "invalid char: " + str.charAt(i);
+	        }
+	        else if (idx >= 0) {
+	            drawLetter(idx, x, y);
+	        }
+	        x += 5;
+	    }
+	}
+	exports.draw = draw;
+	function drawLetter(idx, x, y) {
+	    var p = dotPatterns[idx];
+	    for (var i = 0; i < p.length; i++) {
+	        var d = p[i];
+	        context.fillRect(d.x + x, d.y + y, 1, 1);
+	    }
+	}
+
 
 /***/ }
 /******/ ])
