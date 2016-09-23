@@ -1,7 +1,8 @@
-import * as debug from './debug';
 import * as sss from 'sss';
 import * as pag from 'pag';
 import * as ppe from 'ppe';
+import * as debug from './debug';
+import * as text from './text';
 
 let isInGame = false;
 const rotationNum = 16;
@@ -38,6 +39,8 @@ window.onload = () => {
   pag.defaultOptions.rotationNum = rotationNum;
   pag.defaultOptions.scale = 2;
   random = new Random();
+  overlayContext.fillStyle = 'white';
+  text.init(overlayContext);
   setPlayer();
   document.onmousedown = (e) => {
     onMouseTouchDown(e.pageX, e.pageY);
@@ -100,7 +103,7 @@ function update() {
   context.fillRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
-  if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+  if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
   }
   ppe.update();
@@ -116,6 +119,7 @@ function update() {
       i++;
     }
   }
+  text.draw(`${score}`, 1, 1);
   ticks++;
 };
 
