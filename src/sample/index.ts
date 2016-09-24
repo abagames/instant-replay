@@ -5,6 +5,8 @@ import * as debug from './debug';
 import * as text from './text';
 
 let isInGame = false;
+let titleTicks = 0;
+let gameoverTicks = 0;
 const rotationNum = 16;
 const pixelWidth = 128;
 let actors = [];
@@ -43,6 +45,7 @@ window.onload = () => {
   text.init(overlayContext);
   setPlayer();
   player.isAlive = false;
+  beginTitle();
   document.onmousedown = (e) => {
     onMouseTouchDown(e.pageX, e.pageY);
   };
@@ -95,6 +98,7 @@ function handleTouchStarted() {
 
 function beginGame() {
   isInGame = true;
+  titleTicks = gameoverTicks = 0;
   score = ticks = 0;
   sss.playBgm();
   actors = [];
@@ -103,7 +107,12 @@ function beginGame() {
 
 function endGame() {
   isInGame = false;
+  gameoverTicks = 180;
   sss.stopBgm();
+}
+
+function beginTitle() {
+  titleTicks = 999999;
 }
 
 function update() {
@@ -139,6 +148,18 @@ function update() {
     }
   }
   text.draw(`${score}`, 1, 1);
+  if (gameoverTicks > 0) {
+    text.draw('GAME OVER', 40, 60);
+    gameoverTicks--;
+    if (gameoverTicks <= 0) {
+      beginTitle();
+    }
+  }
+  if (titleTicks > 0) {
+    text.draw('INSTANT REPLAY', 30, 50);
+    text.draw('SAMPLE GAME', 40, 80);
+    titleTicks--;
+  }
   ticks++;
 };
 
@@ -201,7 +222,8 @@ function setLaser() {
     }
     if (this.ticks === 20) {
       if (isInGame) {
-        sss.play('l1', 4);
+        sss.play('l1');
+        sss.play('s1');
       }
       let a = Math.floor(Math.random() * 2) * Math.PI;
       if (this.isVertical) {
