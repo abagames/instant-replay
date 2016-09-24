@@ -180,7 +180,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ppe.options.canvas = canvas;
 	    context = canvas.getContext('2d');
 	    bloomCanvas = document.getElementById('bloom');
-	    bloomCanvas.width = canvas.height = pixelWidth / 2;
+	    bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
 	    bloomContext = bloomCanvas.getContext('2d');
 	    overlayCanvas = document.getElementById('overlay');
 	    overlayCanvas.width = canvas.height = pixelWidth;
@@ -192,6 +192,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    overlayContext.fillStyle = 'white';
 	    text.init(overlayContext);
 	    setPlayer();
+	    player.isAlive = false;
 	    document.onmousedown = function (e) {
 	        onMouseTouchDown(e.pageX, e.pageY);
 	    };
@@ -229,24 +230,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	function handleTouchStarted() {
 	    sss.playEmpty();
 	    if (!isInGame && ticks > 0) {
-	        isInGame = true;
-	        score = ticks = 0;
-	        sss.playBgm();
-	        actors = [];
-	        setPlayer();
+	        beginGame();
 	    }
+	}
+	function beginGame() {
+	    isInGame = true;
+	    score = ticks = 0;
+	    sss.playBgm();
+	    actors = [];
+	    setPlayer();
+	}
+	function endGame() {
+	    isInGame = false;
+	    sss.stopBgm();
 	}
 	function update() {
 	    requestAnimationFrame(update);
 	    sss.update();
-	    context.fillStyle = '#000';
-	    context.fillRect(0, 0, 128, 128);
+	    context.clearRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
 	    if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
 	        setLaser();
 	    }
 	    ppe.update();
+	    var pts = ppe.getParticles();
+	    for (var i = 0; i < pts.length; i++) {
+	        var p = pts[i];
+	        var r = Math.floor(Math.sqrt(p.color.r) * 255);
+	        var g = Math.floor(Math.sqrt(p.color.g) * 255);
+	        var b = Math.floor(Math.sqrt(p.color.b) * 255);
+	        var a = Math.max(p.color.r, p.color.g, p.color.b) / 3;
+	        bloomContext.fillStyle = "rgba(" + r + "," + g + "," + b + ", " + a + ")";
+	        bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);
+	    }
 	    actors.sort(function (a, b) { return a.priority - b.priority; });
 	    forEach(actors, function (a) {
 	        a.update();
@@ -291,6 +308,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    player.destroy = function () {
 	        ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
 	        player.isAlive = false;
+	        endGame();
 	    };
 	    player.priority = 0;
 	    actors.push(player);
