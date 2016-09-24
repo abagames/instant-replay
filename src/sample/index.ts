@@ -168,6 +168,7 @@ function setPlayer() {
   };
   player.destroy = function () {
     ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
+    sss.play('u1', 5);
     player.isAlive = false;
     endGame();
   };
@@ -199,6 +200,9 @@ function setLaser() {
       context.fillRect(0, this.pos - w / 2, pixelWidth, w);
     }
     if (this.ticks === 20) {
+      if (isInGame) {
+        sss.play('l1', 4);
+      }
       let a = Math.floor(Math.random() * 2) * Math.PI;
       if (this.isVertical) {
         a += Math.PI / 2;
