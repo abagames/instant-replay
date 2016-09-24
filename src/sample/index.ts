@@ -30,7 +30,7 @@ window.onload = () => {
   ppe.options.canvas = canvas;
   context = canvas.getContext('2d');
   bloomCanvas = <HTMLCanvasElement>document.getElementById('bloom');
-  bloomCanvas.width = canvas.height = pixelWidth / 2;
+  bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
   bloomContext = bloomCanvas.getContext('2d');
   overlayCanvas = <HTMLCanvasElement>document.getElementById('overlay');
   overlayCanvas.width = canvas.height = pixelWidth;
@@ -99,14 +99,25 @@ function handleTouchStarted() {
 function update() {
   requestAnimationFrame(update);
   sss.update();
-  context.fillStyle = '#000';
-  context.fillRect(0, 0, 128, 128);
+  //context.fillStyle = '#000';
+  //context.fillRect(0, 0, 128, 128);
+  context.clearRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
   if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
   }
   ppe.update();
+  const pts = ppe.getParticles();
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const r = Math.floor(p.color.r * 255);
+    const g = Math.floor(p.color.g * 255);
+    const b = Math.floor(p.color.b * 255);
+    const a = Math.max(p.color.r, p.color.g, p.color.b) / 2;
+    bloomContext.fillStyle = `rgba(${r},${g},${b}, ${a})`;
+    bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);    
+  }
   actors.sort((a, b) => a.priority - b.priority);
   forEach(actors, a => {
     a.update();
