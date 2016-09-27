@@ -1,6 +1,7 @@
 import * as sss from 'sss';
 import * as pag from 'pag';
 import * as ppe from 'ppe';
+import * as ir from '../ir/index';
 import * as debug from './debug';
 import * as text from './text';
 
@@ -21,6 +22,7 @@ let context: CanvasRenderingContext2D;
 let bloomContext: CanvasRenderingContext2D;
 let overlayContext: CanvasRenderingContext2D;
 let cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+let frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 let random: Random;
 
 window.onload = () => {
@@ -117,6 +119,8 @@ function beginTitle() {
 
 function update() {
   requestAnimationFrame(update);
+  frameCursorPos.x = cursorPos.x;
+  frameCursorPos.y = cursorPos.y;
   sss.update();
   context.clearRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
@@ -167,7 +171,7 @@ function setPlayer() {
   if (player != null) {
     player.isAlive = false;
   }
-  player = {};
+  player = { type: 'player' };
   player.pixels = pag.generate([
     ' x',
     'xxxx'
@@ -176,8 +180,8 @@ function setPlayer() {
   player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
   player.angle = -Math.PI / 2;
   player.update = function () {
-    this.pos.x = cursorPos.x;
-    this.pos.y = cursorPos.y;
+    this.pos.x = frameCursorPos.x;
+    this.pos.y = frameCursorPos.y;
     const ox = this.pos.x - this.ppos.x;
     const oy = this.pos.y - this.ppos.y;
     if (Math.sqrt(ox * ox + oy * oy) > 1) {
@@ -198,9 +202,9 @@ function setPlayer() {
 };
 
 function setLaser() {
-  const laser: any = {};
+  const laser: any = { type: 'laser' };
   laser.isVertical = random.get01() > 0.5;
-  laser.pos = random.get01() * pixelWidth;
+  laser.pos = Math.floor(random.get01() * pixelWidth);
   laser.ticks = 0;
   laser.update = function () {
     let w = 0;
