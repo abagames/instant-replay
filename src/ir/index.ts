@@ -2,9 +2,15 @@ export let options = {
   frameCount: 180,
 };
 
-let statusAndEvents = times(options.frameCount, () => null);
-let recordingIndex = 0;
-let replayingIndex = 0;
+let statusAndEvents: any[];
+let recordingIndex: number;
+let replayingIndex: number;
+
+export function startRecord() {
+  statusAndEvents = times(options.frameCount, () => null);
+  recordingIndex = 0;
+  replayingIndex = 0;
+}
 
 export function record(status, events) {
   statusAndEvents[recordingIndex] = { status, events };
@@ -15,6 +21,9 @@ export function record(status, events) {
 }
 
 export function startReplay() {
+  if (statusAndEvents == null || statusAndEvents[0] == null) {
+    return null;
+  }
   replayingIndex = recordingIndex + 1;
   if (replayingIndex >= options.frameCount || statusAndEvents[replayingIndex] == null) {
     replayingIndex = 0;

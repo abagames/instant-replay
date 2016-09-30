@@ -14,7 +14,6 @@ let actors = [];
 let player: any = null;
 let ticks = 0;
 let score = 0;
-let isTouched = false;
 let canvas: HTMLCanvasElement;
 let bloomCanvas: HTMLCanvasElement;
 let overlayCanvas: HTMLCanvasElement;
@@ -103,28 +102,60 @@ function beginGame() {
   titleTicks = gameoverTicks = 0;
   score = ticks = 0;
   sss.playBgm();
+  ir.startRecord();
   actors = [];
   setPlayer();
 }
 
 function endGame() {
+  if (!isInGame) {
+    return;
+  }
   isInGame = false;
-  gameoverTicks = 180;
+  gameoverTicks = 60;
   sss.stopBgm();
 }
 
 function beginTitle() {
-  titleTicks = 999999;
+  titleTicks = 1;
+  ticks = 0;
 }
 
 function update() {
   requestAnimationFrame(update);
   frameCursorPos.x = cursorPos.x;
   frameCursorPos.y = cursorPos.y;
-  sss.update();
+  if (isInGame || gameoverTicks > 0) {
+    ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+  }
   context.clearRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
+  if (titleTicks > 0) {
+    if (titleTicks < 120) {
+      text.draw('INSTANT REPLAY', 30, 50);
+      text.draw('SAMPLE GAME', 40, 80);
+    } else if (titleTicks === 120) {
+      const status = ir.startReplay();
+      if (status != null) {
+        setStatus(status);
+      } else {
+        beginTitle();
+      }
+    }
+    if (titleTicks >= 120) {
+      text.draw('REPLAY', 50, 70);
+      const events = ir.getEvents();
+      if (events != null) {
+        frameCursorPos.x = events[0];
+        frameCursorPos.y = events[1];
+      } else {
+        beginTitle();
+      }
+    }
+    titleTicks++;
+  }
+  sss.update();
   if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
   }
@@ -159,26 +190,24 @@ function update() {
       beginTitle();
     }
   }
-  if (titleTicks > 0) {
-    text.draw('INSTANT REPLAY', 30, 50);
-    text.draw('SAMPLE GAME', 40, 80);
-    titleTicks--;
-  }
   ticks++;
 };
 
-function setPlayer() {
-  if (player != null) {
-    player.isAlive = false;
-  }
-  player = { type: 'player' };
+function setPlayer(status = null) {
+  player = {};
   player.pixels = pag.generate([
     ' x',
     'xxxx'
   ]);
-  player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-  player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-  player.angle = -Math.PI / 2;
+  if (status == null) {
+    player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+    player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+    player.angle = -Math.PI / 2;
+  } else {
+    player.pos = { x: status[1], y: status[2] };
+    player.ppos = { x: status[3], y: status[4] };
+    player.angle = status[5];
+  }
   player.update = function () {
     this.pos.x = frameCursorPos.x;
     this.pos.y = frameCursorPos.y;
@@ -197,15 +226,24 @@ function setPlayer() {
     player.isAlive = false;
     endGame();
   };
+  player.getStatus = function () {
+    return ['p', this.pos.x, this.pos.y, this.ppos.x, this.ppos.y, this.angle];
+  };
   player.priority = 0;
   actors.push(player);
 };
 
-function setLaser() {
-  const laser: any = { type: 'laser' };
-  laser.isVertical = random.get01() > 0.5;
-  laser.pos = Math.floor(random.get01() * pixelWidth);
-  laser.ticks = 0;
+function setLaser(status = null) {
+  const laser: any = {};
+  if (status == null) {
+    laser.isVertical = random.get01() > 0.5;
+    laser.pos = Math.floor(random.get01() * pixelWidth);
+    laser.ticks = 0;
+  } else {
+    laser.isVertical = status[1];
+    laser.pos = status[2];
+    laser.ticks = status[3];
+  }
   laser.update = function () {
     let w = 0;
     let br = 0;
@@ -256,6 +294,9 @@ function setLaser() {
       laser.isAlive = false;
     }
   };
+  laser.getStatus = function () {
+    return ['l', this.isVertical, this.pos, this.ticks];
+  };
   laser.priority = 1;
   actors.push(laser);
 }
@@ -285,14 +326,34 @@ function drawPixels(actor) {
   }
 }
 
-function getActors(name: string) {
-  let result = [];
+function getStatus() {
+  return [ticks, score, random.getStatus(), getActorsStatus()];
+}
+
+function setStatus(status) {
+  ticks = status[0];
+  score = status[1];
+  random.setStatus(status[2]);
+  setActorsStatus(status[3]);
+}
+
+function getActorsStatus() {
+  let state = [];
   forEach(actors, a => {
-    if (a.name === name) {
-      result.push(a);
+    state.push(a.getStatus());
+  });
+  return state;
+}
+
+function setActorsStatus(state) {
+  actors = [];
+  forEach(state, s => {
+    if (s[0] === 'p') {
+      setPlayer(s);
+    } else {
+      setLaser(s);
     }
   });
-  return result;
 }
 
 function onSeedChanged(seed: number) {
@@ -365,5 +426,16 @@ class Random {
   constructor() {
     this.setSeed();
     this.get01 = this.get01.bind(this);
+  }
+
+  getStatus() {
+    return [this.x, this.y, this.z, this.w];
+  }
+
+  setStatus(status) {
+    this.x = status[0];
+    this.y = status[1];
+    this.z = status[2];
+    this.w = status[3];
   }
 }

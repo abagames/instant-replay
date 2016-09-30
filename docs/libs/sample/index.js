@@ -68,9 +68,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.options = {
 	    frameCount: 180,
 	};
-	var statusAndEvents = times(exports.options.frameCount, function () { return null; });
-	var recordingIndex = 0;
-	var replayingIndex = 0;
+	var statusAndEvents;
+	var recordingIndex;
+	var replayingIndex;
+	function startRecord() {
+	    statusAndEvents = times(exports.options.frameCount, function () { return null; });
+	    recordingIndex = 0;
+	    replayingIndex = 0;
+	}
+	exports.startRecord = startRecord;
 	function record(status, events) {
 	    statusAndEvents[recordingIndex] = { status: status, events: events };
 	    recordingIndex++;
@@ -80,6 +86,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.record = record;
 	function startReplay() {
+	    if (statusAndEvents == null || statusAndEvents[0] == null) {
+	        return null;
+	    }
 	    replayingIndex = recordingIndex + 1;
 	    if (replayingIndex >= exports.options.frameCount || statusAndEvents[replayingIndex] == null) {
 	        replayingIndex = 0;
@@ -133,12 +142,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.initSeedUi = initSeedUi;
 	function enableShowingErrors() {
-	    var result = document.createElement('pre');
-	    result.setAttribute('id', 'result');
-	    document.getElementsByTagName('body')[0].appendChild(result);
+	    var pre = document.createElement('pre');
+	    document.getElementsByTagName('body')[0].appendChild(pre);
 	    window.addEventListener('error', function (error) {
 	        var message = [error.filename, '@', error.lineno, ':\n', error.message].join('');
-	        result.textContent += '\n' + message;
+	        pre.textContent += '\n' + message;
 	        return false;
 	    });
 	}
@@ -153,16 +161,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	var sss = __webpack_require__(4);
 	var pag = __webpack_require__(5);
 	var ppe = __webpack_require__(6);
+	var ir = __webpack_require__(1);
 	var debug = __webpack_require__(2);
 	var text = __webpack_require__(7);
 	var isInGame = false;
+	var titleTicks = 0;
+	var gameoverTicks = 0;
 	var rotationNum = 16;
 	var pixelWidth = 128;
 	var actors = [];
 	var player = null;
 	var ticks = 0;
 	var score = 0;
-	var isTouched = false;
 	var canvas;
 	var bloomCanvas;
 	var overlayCanvas;
@@ -170,6 +180,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var bloomContext;
 	var overlayContext;
 	var cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+	var frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	var random;
 	window.onload = function () {
 	    sss.init();
@@ -193,6 +204,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    text.init(overlayContext);
 	    setPlayer();
 	    player.isAlive = false;
+	    beginTitle();
 	    document.onmousedown = function (e) {
 	        onMouseTouchDown(e.pageX, e.pageY);
 	    };
@@ -235,21 +247,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	function beginGame() {
 	    isInGame = true;
+	    titleTicks = gameoverTicks = 0;
 	    score = ticks = 0;
 	    sss.playBgm();
+	    ir.startRecord();
 	    actors = [];
 	    setPlayer();
 	}
 	function endGame() {
+	    if (!isInGame) {
+	        return;
+	    }
 	    isInGame = false;
+	    gameoverTicks = 60;
 	    sss.stopBgm();
+	}
+	function beginTitle() {
+	    titleTicks = 1;
+	    ticks = 0;
 	}
 	function update() {
 	    requestAnimationFrame(update);
-	    sss.update();
+	    frameCursorPos.x = cursorPos.x;
+	    frameCursorPos.y = cursorPos.y;
+	    if (isInGame || gameoverTicks > 0) {
+	        ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+	    }
 	    context.clearRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
+	    if (titleTicks > 0) {
+	        if (titleTicks < 120) {
+	            text.draw('INSTANT REPLAY', 30, 50);
+	            text.draw('SAMPLE GAME', 40, 80);
+	        }
+	        else if (titleTicks === 120) {
+	            var status_1 = ir.startReplay();
+	            if (status_1 != null) {
+	                setStatus(status_1);
+	            }
+	            else {
+	                beginTitle();
+	            }
+	        }
+	        if (titleTicks >= 120) {
+	            text.draw('REPLAY', 50, 70);
+	            var events = ir.getEvents();
+	            if (events != null) {
+	                frameCursorPos.x = events[0];
+	                frameCursorPos.y = events[1];
+	            }
+	            else {
+	                beginTitle();
+	            }
+	        }
+	        titleTicks++;
+	    }
+	    sss.update();
 	    if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
 	        setLaser();
 	    }
@@ -278,24 +332,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    }
 	    text.draw("" + score, 1, 1);
+	    if (gameoverTicks > 0) {
+	        text.draw('GAME OVER', 40, 60);
+	        gameoverTicks--;
+	        if (gameoverTicks <= 0) {
+	            beginTitle();
+	        }
+	    }
 	    ticks++;
 	}
 	;
-	function setPlayer() {
-	    if (player != null) {
-	        player.isAlive = false;
-	    }
+	function setPlayer(status) {
+	    if (status === void 0) { status = null; }
 	    player = {};
 	    player.pixels = pag.generate([
 	        ' x',
 	        'xxxx'
 	    ]);
-	    player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-	    player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-	    player.angle = -Math.PI / 2;
+	    if (status == null) {
+	        player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+	        player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
+	        player.angle = -Math.PI / 2;
+	    }
+	    else {
+	        player.pos = { x: status[1], y: status[2] };
+	        player.ppos = { x: status[3], y: status[4] };
+	        player.angle = status[5];
+	    }
 	    player.update = function () {
-	        this.pos.x = cursorPos.x;
-	        this.pos.y = cursorPos.y;
+	        this.pos.x = frameCursorPos.x;
+	        this.pos.y = frameCursorPos.y;
 	        var ox = this.pos.x - this.ppos.x;
 	        var oy = this.pos.y - this.ppos.y;
 	        if (Math.sqrt(ox * ox + oy * oy) > 1) {
@@ -307,18 +373,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	    player.destroy = function () {
 	        ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
+	        sss.play('u1', 5);
 	        player.isAlive = false;
 	        endGame();
+	    };
+	    player.getStatus = function () {
+	        return ['p', this.pos.x, this.pos.y, this.ppos.x, this.ppos.y, this.angle];
 	    };
 	    player.priority = 0;
 	    actors.push(player);
 	}
 	;
-	function setLaser() {
+	function setLaser(status) {
+	    if (status === void 0) { status = null; }
 	    var laser = {};
-	    laser.isVertical = random.get01() > 0.5;
-	    laser.pos = random.get01() * pixelWidth;
-	    laser.ticks = 0;
+	    if (status == null) {
+	        laser.isVertical = random.get01() > 0.5;
+	        laser.pos = Math.floor(random.get01() * pixelWidth);
+	        laser.ticks = 0;
+	    }
+	    else {
+	        laser.isVertical = status[1];
+	        laser.pos = status[2];
+	        laser.ticks = status[3];
+	    }
 	    laser.update = function () {
 	        var w = 0;
 	        var br = 0;
@@ -340,6 +418,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	            context.fillRect(0, this.pos - w / 2, pixelWidth, w);
 	        }
 	        if (this.ticks === 20) {
+	            if (isInGame) {
+	                sss.play('l1');
+	                sss.play('s1');
+	            }
 	            var a = Math.floor(Math.random() * 2) * Math.PI;
 	            if (this.isVertical) {
 	                a += Math.PI / 2;
@@ -368,6 +450,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            laser.isAlive = false;
 	        }
 	    };
+	    laser.getStatus = function () {
+	        return ['l', this.isVertical, this.pos, this.ticks];
+	    };
 	    laser.priority = 1;
 	    actors.push(laser);
 	}
@@ -394,14 +479,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    }
 	}
-	function getActors(name) {
-	    var result = [];
+	function getStatus() {
+	    return [ticks, score, random.getStatus(), getActorsStatus()];
+	}
+	function setStatus(status) {
+	    ticks = status[0];
+	    score = status[1];
+	    random.setStatus(status[2]);
+	    setActorsStatus(status[3]);
+	}
+	function getActorsStatus() {
+	    var state = [];
 	    forEach(actors, function (a) {
-	        if (a.name === name) {
-	            result.push(a);
+	        state.push(a.getStatus());
+	    });
+	    return state;
+	}
+	function setActorsStatus(state) {
+	    actors = [];
+	    forEach(state, function (s) {
+	        if (s[0] === 'p') {
+	            setPlayer(s);
+	        }
+	        else {
+	            setLaser(s);
 	        }
 	    });
-	    return result;
 	}
 	function onSeedChanged(seed) {
 	    pag.setSeed(seed);
@@ -465,6 +568,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	    Random.prototype.get01 = function () {
 	        return this.getInt() / 0x7fffffff;
+	    };
+	    Random.prototype.getStatus = function () {
+	        return [this.x, this.y, this.z, this.w];
+	    };
+	    Random.prototype.setStatus = function (status) {
+	        this.x = status[0];
+	        this.y = status[1];
+	        this.z = status[2];
+	        this.w = status[3];
 	    };
 	    return Random;
 	}());
