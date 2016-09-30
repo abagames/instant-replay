@@ -1,12 +1,12 @@
 export function initSeedUi(onSeedChanged: Function) {
-  var p = document.createElement('p');
+  const p = document.createElement('p');
   p.innerHTML = '<button id="change">change</button>' +
     'random seed: <input type="number" id="seed" value="0"></input>' +
     '<button id="set">set</button>';
   document.getElementsByTagName('body')[0].appendChild(p);
-  var changeElm = document.getElementById('change');
-  var seedElm = <HTMLInputElement>document.getElementById('seed');
-  var setElm = document.getElementById('set');
+  const changeElm = document.getElementById('change');
+  const seedElm = <HTMLInputElement>document.getElementById('seed');
+  const setElm = document.getElementById('set');
   changeElm.onclick = function () {
     seedElm.value = Math.floor(Math.random() * 9999999).toString();
     onSeedChanging();
@@ -18,12 +18,11 @@ export function initSeedUi(onSeedChanged: Function) {
 }
 
 export function enableShowingErrors() {
-  var result = document.createElement('pre');
-  result.setAttribute('id', 'result');
-  document.getElementsByTagName('body')[0].appendChild(result);
+  const pre = document.createElement('pre');
+  document.getElementsByTagName('body')[0].appendChild(pre);
   window.addEventListener('error', function (error: any) {
     var message = [error.filename, '@', error.lineno, ':\n', error.message].join('');
-    result.textContent += '\n' + message;
+    pre.textContent += '\n' + message;
     return false;
   });
 }
