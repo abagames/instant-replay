@@ -10,6 +10,7 @@ let titleTicks = 0;
 let gameoverTicks = 0;
 const rotationNum = 16;
 const pixelWidth = 128;
+const titleDuration = 120;
 let actors = [];
 let player: any = null;
 let ticks = 0;
@@ -47,6 +48,9 @@ window.onload = () => {
   setPlayer();
   player.isAlive = false;
   beginTitle();
+  if (ir.loadFromUrl() === true) {
+    beginReplay();
+  }
   document.onmousedown = (e) => {
     onMouseTouchDown(e.pageX, e.pageY);
   };
@@ -117,8 +121,13 @@ function endGame() {
 }
 
 function beginTitle() {
+  ir.saveAsUrl();
   titleTicks = 1;
   ticks = 0;
+}
+
+function beginReplay() {
+  titleTicks = titleDuration;
 }
 
 function update() {
@@ -135,18 +144,18 @@ function update() {
     if (titleTicks < 120) {
       text.draw('INSTANT REPLAY', 30, 50);
       text.draw('SAMPLE GAME', 40, 80);
-    } else if (titleTicks === 120) {
+    } else if (titleTicks === titleDuration) {
       const status = ir.startReplay();
-      if (status != null) {
+      if (status !== false) {
         setStatus(status);
       } else {
         beginTitle();
       }
     }
-    if (titleTicks >= 120) {
+    if (titleTicks >= titleDuration) {
       text.draw('REPLAY', 50, 70);
       const events = ir.getEvents();
-      if (events != null) {
+      if (events !== false) {
         frameCursorPos.x = events[0];
         frameCursorPos.y = events[1];
       } else {
