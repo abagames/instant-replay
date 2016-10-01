@@ -11,6 +11,7 @@ let gameoverTicks = 0;
 const rotationNum = 16;
 const pixelWidth = 128;
 const titleDuration = 120;
+let isReplaying = false;
 let actors = [];
 let player: any = null;
 let ticks = 0;
@@ -24,6 +25,7 @@ let overlayContext: CanvasRenderingContext2D;
 let cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 let frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 let random: Random;
+let isClicked = false;
 
 window.onload = () => {
   sss.init();
@@ -76,7 +78,8 @@ window.onload = () => {
 
 function onMouseTouchDown(x, y) {
   setCursorPos(x, y);
-  handleTouchStarted();
+  sss.playEmpty();
+  isClicked = true;
 }
 
 function onMouseTouchMove(x, y) {
@@ -95,15 +98,9 @@ function setCursorPos(x, y) {
 function onMouseTouchUp(e) {
 }
 
-function handleTouchStarted() {
-  sss.playEmpty();
-  if (!isInGame && ticks > 0) {
-    beginGame();
-  }
-}
-
 function beginGame() {
   isInGame = true;
+  isReplaying = false;
   titleTicks = gameoverTicks = 0;
   score = ticks = 0;
   sss.playBgm();
@@ -113,6 +110,7 @@ function beginGame() {
 }
 
 function endGame() {
+  isReplaying = false;
   if (!isInGame) {
     return;
   }
@@ -125,6 +123,7 @@ function endGame() {
 function beginTitle() {
   titleTicks = 1;
   ticks = 0;
+  isReplaying = false;
 }
 
 function beginReplay() {
@@ -133,6 +132,10 @@ function beginReplay() {
 
 function update() {
   requestAnimationFrame(update);
+  if (!isInGame && isClicked) {
+    beginGame();
+  }
+  isClicked = false;
   frameCursorPos.x = cursorPos.x;
   frameCursorPos.y = cursorPos.y;
   if (isInGame) {
@@ -149,6 +152,7 @@ function update() {
       const status = ir.startReplay();
       if (status !== false) {
         setStatus(status);
+        isReplaying = true;
       } else {
         beginTitle();
       }
@@ -294,10 +298,15 @@ function setLaser(status = null) {
         }
         ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
       }
-      if (player.isAlive !== false) {
-        let pp = this.isVertical ? player.pos.x : player.pos.y;
-        if (Math.abs(this.pos - pp) < 10) {
+    }
+    if (player.isAlive !== false) {
+      let pp = this.isVertical ? player.pos.x : player.pos.y;
+      const lw = this.ticks === 20 ? w * 0.4 : w * 1.5;
+      if (Math.abs(this.pos - pp) < lw) {
+        if (this.ticks === 20) {
           player.destroy();
+        } else {
+          addScore();
         }
       }
     }
@@ -310,7 +319,14 @@ function setLaser(status = null) {
     return ['l', this.isVertical, this.pos, this.ticks];
   };
   laser.priority = 1;
+  addScore();
   actors.push(laser);
+}
+
+function addScore() {
+  if (isInGame || isReplaying) {
+    score++;
+  }
 }
 
 function drawPixels(actor) {

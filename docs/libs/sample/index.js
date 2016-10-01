@@ -226,6 +226,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var rotationNum = 16;
 	var pixelWidth = 128;
 	var titleDuration = 120;
+	var isReplaying = false;
 	var actors = [];
 	var player = null;
 	var ticks = 0;
@@ -239,6 +240,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	var frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	var random;
+	var isClicked = false;
 	window.onload = function () {
 	    sss.init();
 	    debug.enableShowingErrors();
@@ -289,7 +291,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	function onMouseTouchDown(x, y) {
 	    setCursorPos(x, y);
-	    handleTouchStarted();
+	    sss.playEmpty();
+	    isClicked = true;
 	}
 	function onMouseTouchMove(x, y) {
 	    setCursorPos(x, y);
@@ -300,14 +303,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	function onMouseTouchUp(e) {
 	}
-	function handleTouchStarted() {
-	    sss.playEmpty();
-	    if (!isInGame && ticks > 0) {
-	        beginGame();
-	    }
-	}
 	function beginGame() {
 	    isInGame = true;
+	    isReplaying = false;
 	    titleTicks = gameoverTicks = 0;
 	    score = ticks = 0;
 	    sss.playBgm();
@@ -316,6 +314,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    setPlayer();
 	}
 	function endGame() {
+	    isReplaying = false;
 	    if (!isInGame) {
 	        return;
 	    }
@@ -327,12 +326,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	function beginTitle() {
 	    titleTicks = 1;
 	    ticks = 0;
+	    isReplaying = false;
 	}
 	function beginReplay() {
 	    titleTicks = titleDuration;
 	}
 	function update() {
 	    requestAnimationFrame(update);
+	    if (!isInGame && isClicked) {
+	        beginGame();
+	    }
+	    isClicked = false;
 	    frameCursorPos.x = cursorPos.x;
 	    frameCursorPos.y = cursorPos.y;
 	    if (isInGame) {
@@ -350,6 +354,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var status_1 = ir.startReplay();
 	            if (status_1 !== false) {
 	                setStatus(status_1);
+	                isReplaying = true;
 	            }
 	            else {
 	                beginTitle();
@@ -505,10 +510,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	                ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
 	            }
-	            if (player.isAlive !== false) {
-	                var pp = this.isVertical ? player.pos.x : player.pos.y;
-	                if (Math.abs(this.pos - pp) < 10) {
+	        }
+	        if (player.isAlive !== false) {
+	            var pp = this.isVertical ? player.pos.x : player.pos.y;
+	            var lw = this.ticks === 20 ? w * 0.4 : w * 1.5;
+	            if (Math.abs(this.pos - pp) < lw) {
+	                if (this.ticks === 20) {
 	                    player.destroy();
+	                }
+	                else {
+	                    addScore();
 	                }
 	            }
 	        }
@@ -521,7 +532,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return ['l', this.isVertical, this.pos, this.ticks];
 	    };
 	    laser.priority = 1;
+	    addScore();
 	    actors.push(laser);
+	}
+	function addScore() {
+	    if (isInGame || isReplaying) {
+	        score++;
+	    }
 	}
 	function drawPixels(actor) {
 	    if (!actor.hasOwnProperty('pixels')) {
