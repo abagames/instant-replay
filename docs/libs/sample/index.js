@@ -67,7 +67,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var LZString = __webpack_require__(8);
 	exports.options = {
-	    frameCount: 180,
+	    frameCount: 180
 	};
 	var statuses;
 	var events;
@@ -75,8 +75,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var replayingIndex;
 	function startRecord() {
 	    initStatusesAndEvents();
-	    recordingIndex = 0;
-	    replayingIndex = 0;
+	    recordingIndex = replayingIndex = 0;
 	}
 	exports.startRecord = startRecord;
 	function initStatusesAndEvents() {
@@ -100,7 +99,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (events == null || events[0] == null) {
 	        return false;
 	    }
-	    calcStartingReplayingIndex();
+	    calcStartingReplayIndex();
 	    return statuses[replayingIndex];
 	}
 	exports.startReplay = startReplay;
@@ -116,7 +115,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return e;
 	}
 	exports.getEvents = getEvents;
-	function calcStartingReplayingIndex() {
+	function calcStartingReplayIndex() {
 	    replayingIndex = recordingIndex + 1;
 	    if (replayingIndex >= exports.options.frameCount || events[replayingIndex] == null) {
 	        replayingIndex = 0;
@@ -127,7 +126,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return false;
 	    }
 	    var baseUrl = window.location.href.split('?')[0];
-	    calcStartingReplayingIndex();
+	    calcStartingReplayIndex();
 	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify({ st: statuses[replayingIndex], ev: events, idx: recordingIndex }));
 	    var url = baseUrl + "?d=" + encDataStr;
 	    try {
@@ -161,7 +160,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        initStatusesAndEvents();
 	        recordingIndex = data.idx;
 	        events = data.ev;
-	        calcStartingReplayingIndex();
+	        calcStartingReplayIndex();
 	        statuses[replayingIndex] = data.st;
 	        return true;
 	    }
@@ -218,95 +217,57 @@ return /******/ (function(modules) { // webpackBootstrap
 	var pag = __webpack_require__(5);
 	var ppe = __webpack_require__(6);
 	var ir = __webpack_require__(1);
-	var debug = __webpack_require__(2);
 	var text = __webpack_require__(7);
-	var isInGame = false;
-	var titleTicks = 0;
-	var gameoverTicks = 0;
+	var debug = __webpack_require__(2);
 	var rotationNum = 16;
 	var pixelWidth = 128;
-	var titleDuration = 120;
-	var isReplaying = false;
 	var actors = [];
 	var player = null;
 	var ticks = 0;
 	var score = 0;
+	var scene;
+	var random;
 	var canvas;
-	var bloomCanvas;
-	var overlayCanvas;
 	var context;
+	var bloomCanvas;
 	var bloomContext;
+	var overlayCanvas;
 	var overlayContext;
 	var cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	var frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-	var random;
 	var isClicked = false;
+	var Scene;
+	(function (Scene) {
+	    Scene[Scene["title"] = 0] = "title";
+	    Scene[Scene["game"] = 1] = "game";
+	    Scene[Scene["gameover"] = 2] = "gameover";
+	    Scene[Scene["replay"] = 3] = "replay";
+	})(Scene || (Scene = {}));
+	;
 	window.onload = function () {
-	    sss.init();
 	    debug.enableShowingErrors();
 	    //debug.initSeedUi(onSeedChanged);
-	    canvas = document.getElementById('main');
-	    canvas.width = canvas.height = pixelWidth;
-	    ppe.options.canvas = canvas;
-	    context = canvas.getContext('2d');
-	    bloomCanvas = document.getElementById('bloom');
-	    bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
-	    bloomContext = bloomCanvas.getContext('2d');
-	    overlayCanvas = document.getElementById('overlay');
-	    overlayCanvas.width = canvas.height = pixelWidth;
-	    overlayContext = overlayCanvas.getContext('2d');
+	    initCanvases();
+	    random = new Random();
+	    sss.init();
 	    pag.defaultOptions.isMirrorY = true;
 	    pag.defaultOptions.rotationNum = rotationNum;
 	    pag.defaultOptions.scale = 2;
-	    random = new Random();
+	    ppe.options.canvas = canvas;
 	    overlayContext.fillStyle = 'white';
 	    text.init(overlayContext);
-	    setPlayer();
-	    player.isAlive = false;
 	    onSeedChanged(6008729);
-	    beginTitle();
+	    initCursorEvents();
 	    if (ir.loadFromUrl() === true) {
 	        beginReplay();
 	    }
-	    document.onmousedown = function (e) {
-	        onMouseTouchDown(e.pageX, e.pageY);
-	    };
-	    document.ontouchstart = function (e) {
-	        onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
-	    };
-	    document.onmousemove = function (e) {
-	        onMouseTouchMove(e.pageX, e.pageY);
-	    };
-	    document.ontouchmove = function (e) {
-	        e.preventDefault();
-	        onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
-	    };
-	    document.onmouseup = function (e) {
-	        onMouseTouchUp(e);
-	    };
-	    document.ontouchend = function (e) {
-	        onMouseTouchUp(e);
-	    };
+	    else {
+	        beginTitle();
+	    }
 	    update();
 	};
-	function onMouseTouchDown(x, y) {
-	    setCursorPos(x, y);
-	    sss.playEmpty();
-	    isClicked = true;
-	}
-	function onMouseTouchMove(x, y) {
-	    setCursorPos(x, y);
-	}
-	function setCursorPos(x, y) {
-	    cursorPos.x = clamp(Math.round(((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth), 0, pixelWidth - 1);
-	    cursorPos.y = clamp(Math.round(((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth), 0, pixelWidth - 1);
-	}
-	function onMouseTouchUp(e) {
-	}
 	function beginGame() {
-	    isInGame = true;
-	    isReplaying = false;
-	    titleTicks = gameoverTicks = 0;
+	    scene = Scene.game;
 	    score = ticks = 0;
 	    sss.playBgm();
 	    ir.startRecord();
@@ -314,80 +275,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	    setPlayer();
 	}
 	function endGame() {
-	    isReplaying = false;
-	    if (!isInGame) {
+	    if (scene === Scene.gameover || scene === Scene.replay) {
 	        return;
 	    }
-	    isInGame = false;
-	    gameoverTicks = 60;
+	    scene = Scene.gameover;
+	    ticks = 0;
 	    sss.stopBgm();
 	    ir.saveAsUrl();
 	}
 	function beginTitle() {
-	    titleTicks = 1;
+	    scene = Scene.title;
 	    ticks = 0;
-	    isReplaying = false;
 	}
 	function beginReplay() {
-	    titleTicks = titleDuration;
+	    var status = ir.startReplay();
+	    if (status !== false) {
+	        setStatus(status);
+	        scene = Scene.replay;
+	    }
+	    else {
+	        beginTitle();
+	    }
 	}
 	function update() {
 	    requestAnimationFrame(update);
-	    if (!isInGame && isClicked) {
-	        beginGame();
-	    }
-	    isClicked = false;
 	    frameCursorPos.x = cursorPos.x;
 	    frameCursorPos.y = cursorPos.y;
-	    if (isInGame) {
-	        ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
-	    }
 	    context.clearRect(0, 0, 128, 128);
 	    bloomContext.clearRect(0, 0, 64, 64);
 	    overlayContext.clearRect(0, 0, 128, 128);
-	    if (titleTicks > 0) {
-	        if (titleTicks < 120) {
-	            text.draw('INSTANT REPLAY', 30, 50);
-	            text.draw('SAMPLE GAME', 40, 80);
-	        }
-	        else if (titleTicks === titleDuration) {
-	            var status_1 = ir.startReplay();
-	            if (status_1 !== false) {
-	                setStatus(status_1);
-	                isReplaying = true;
-	            }
-	            else {
-	                beginTitle();
-	            }
-	        }
-	        if (titleTicks >= titleDuration) {
-	            text.draw('REPLAY', 50, 70);
-	            var events = ir.getEvents();
-	            if (events !== false) {
-	                frameCursorPos.x = events[0];
-	                frameCursorPos.y = events[1];
-	            }
-	            else {
-	                beginTitle();
-	            }
-	        }
-	        titleTicks++;
-	    }
+	    handleScene();
 	    sss.update();
-	    if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+	    if (random.get01() < 0.015 * Math.sqrt(ticks * 0.01 + 1)) {
 	        setLaser();
+	        addScore();
 	    }
 	    ppe.update();
-	    var pts = ppe.getParticles();
-	    for (var i = 0; i < pts.length; i++) {
-	        var p = pts[i];
-	        var r = Math.floor(Math.sqrt(p.color.r) * 255);
-	        var g = Math.floor(Math.sqrt(p.color.g) * 255);
-	        var b = Math.floor(Math.sqrt(p.color.b) * 255);
-	        var a = Math.max(p.color.r, p.color.g, p.color.b) / 3;
-	        bloomContext.fillStyle = "rgba(" + r + "," + g + "," + b + ", " + a + ")";
-	        bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);
-	    }
+	    drawBloomParticles();
 	    actors.sort(function (a, b) { return a.priority - b.priority; });
 	    forEach(actors, function (a) {
 	        a.update();
@@ -402,16 +326,53 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    }
 	    text.draw("" + score, 1, 1);
-	    if (gameoverTicks > 0) {
+	    ticks++;
+	}
+	function handleScene() {
+	    if (scene !== Scene.game && isClicked) {
+	        beginGame();
+	    }
+	    isClicked = false;
+	    if (scene === Scene.game) {
+	        ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+	    }
+	    if (scene === Scene.gameover) {
 	        text.draw('GAME OVER', 40, 60);
-	        gameoverTicks--;
-	        if (gameoverTicks <= 0) {
+	        if (ticks >= 60) {
 	            beginTitle();
 	        }
 	    }
-	    ticks++;
+	    if (scene === Scene.title) {
+	        text.draw('INSTANT REPLAY', 30, 50);
+	        text.draw('SAMPLE GAME', 40, 80);
+	        if (ticks >= 120) {
+	            beginReplay();
+	        }
+	    }
+	    if (scene === Scene.replay) {
+	        text.draw('REPLAY', 50, 70);
+	        var events = ir.getEvents();
+	        if (events !== false) {
+	            frameCursorPos.x = events[0];
+	            frameCursorPos.y = events[1];
+	        }
+	        else {
+	            beginTitle();
+	        }
+	    }
 	}
-	;
+	function drawBloomParticles() {
+	    var pts = ppe.getParticles();
+	    for (var i = 0; i < pts.length; i++) {
+	        var p = pts[i];
+	        var r = Math.floor(Math.sqrt(p.color.r) * 255);
+	        var g = Math.floor(Math.sqrt(p.color.g) * 255);
+	        var b = Math.floor(Math.sqrt(p.color.b) * 255);
+	        var a = Math.max(p.color.r, p.color.g, p.color.b) / 3;
+	        bloomContext.fillStyle = "rgba(" + r + "," + g + "," + b + ", " + a + ")";
+	        bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);
+	    }
+	}
 	function setPlayer(status) {
 	    if (status === void 0) { status = null; }
 	    player = {};
@@ -443,7 +404,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	    player.destroy = function () {
 	        ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
-	        if (isInGame) {
+	        if (scene === Scene.game) {
 	            sss.play('u1', 4);
 	        }
 	        player.isAlive = false;
@@ -490,7 +451,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            context.fillRect(0, this.pos - w / 2, pixelWidth, w);
 	        }
 	        if (this.ticks === 20) {
-	            if (isInGame) {
+	            if (scene === Scene.game) {
 	                sss.play('l1');
 	                sss.play('s1');
 	            }
@@ -511,7 +472,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
 	            }
 	        }
-	        if (player.isAlive !== false) {
+	        if (player != null && player.isAlive !== false) {
 	            var pp = this.isVertical ? player.pos.x : player.pos.y;
 	            var lw = this.ticks === 20 ? w * 0.4 : w * 1.5;
 	            if (Math.abs(this.pos - pp) < lw) {
@@ -532,11 +493,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return ['l', this.isVertical, this.pos, this.ticks];
 	    };
 	    laser.priority = 1;
-	    addScore();
 	    actors.push(laser);
 	}
 	function addScore() {
-	    if (isInGame || isReplaying) {
+	    if (scene === Scene.game || scene === Scene.replay) {
 	        score++;
 	    }
 	}
@@ -596,9 +556,56 @@ return /******/ (function(modules) { // webpackBootstrap
 	    sss.setSeed(seed);
 	    ppe.setSeed(seed);
 	    ppe.reset();
-	    if (isInGame) {
+	    if (scene === Scene.game) {
 	        sss.playBgm();
 	    }
+	}
+	function initCanvases() {
+	    canvas = document.getElementById('main');
+	    canvas.width = canvas.height = pixelWidth;
+	    ppe.options.canvas = canvas;
+	    context = canvas.getContext('2d');
+	    bloomCanvas = document.getElementById('bloom');
+	    bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
+	    bloomContext = bloomCanvas.getContext('2d');
+	    overlayCanvas = document.getElementById('overlay');
+	    overlayCanvas.width = canvas.height = pixelWidth;
+	    overlayContext = overlayCanvas.getContext('2d');
+	}
+	function initCursorEvents() {
+	    document.onmousedown = function (e) {
+	        onMouseTouchDown(e.pageX, e.pageY);
+	    };
+	    document.ontouchstart = function (e) {
+	        onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
+	    };
+	    document.onmousemove = function (e) {
+	        onMouseTouchMove(e.pageX, e.pageY);
+	    };
+	    document.ontouchmove = function (e) {
+	        e.preventDefault();
+	        onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
+	    };
+	    document.onmouseup = function (e) {
+	        onMouseTouchUp(e);
+	    };
+	    document.ontouchend = function (e) {
+	        onMouseTouchUp(e);
+	    };
+	}
+	function onMouseTouchDown(x, y) {
+	    setCursorPos(x, y);
+	    sss.playEmpty();
+	    isClicked = true;
+	}
+	function onMouseTouchMove(x, y) {
+	    setCursorPos(x, y);
+	}
+	function setCursorPos(x, y) {
+	    cursorPos.x = clamp(Math.round(((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth), 0, pixelWidth - 1);
+	    cursorPos.y = clamp(Math.round(((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth), 0, pixelWidth - 1);
+	}
+	function onMouseTouchUp(e) {
 	}
 	function forEach(array, func) {
 	    for (var i = 0; i < array.length; i++) {

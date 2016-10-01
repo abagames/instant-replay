@@ -2,106 +2,55 @@ import * as sss from 'sss';
 import * as pag from 'pag';
 import * as ppe from 'ppe';
 import * as ir from '../ir/index';
-import * as debug from './debug';
 import * as text from './text';
+import * as debug from './debug';
 
-let isInGame = false;
-let titleTicks = 0;
-let gameoverTicks = 0;
 const rotationNum = 16;
 const pixelWidth = 128;
-const titleDuration = 120;
-let isReplaying = false;
 let actors = [];
 let player: any = null;
 let ticks = 0;
 let score = 0;
+let scene: Scene;
+let random: Random;
 let canvas: HTMLCanvasElement;
-let bloomCanvas: HTMLCanvasElement;
-let overlayCanvas: HTMLCanvasElement;
 let context: CanvasRenderingContext2D;
+let bloomCanvas: HTMLCanvasElement;
 let bloomContext: CanvasRenderingContext2D;
+let overlayCanvas: HTMLCanvasElement;
 let overlayContext: CanvasRenderingContext2D;
 let cursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 let frameCursorPos = { x: pixelWidth / 2, y: pixelWidth / 2 };
-let random: Random;
 let isClicked = false;
 
+enum Scene {
+  title, game, gameover, replay
+};
+
 window.onload = () => {
-  sss.init();
   debug.enableShowingErrors()
   //debug.initSeedUi(onSeedChanged);
-  canvas = <HTMLCanvasElement>document.getElementById('main');
-  canvas.width = canvas.height = pixelWidth;
-  ppe.options.canvas = canvas;
-  context = canvas.getContext('2d');
-  bloomCanvas = <HTMLCanvasElement>document.getElementById('bloom');
-  bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
-  bloomContext = bloomCanvas.getContext('2d');
-  overlayCanvas = <HTMLCanvasElement>document.getElementById('overlay');
-  overlayCanvas.width = canvas.height = pixelWidth;
-  overlayContext = overlayCanvas.getContext('2d');
+  initCanvases();
+  random = new Random();
+  sss.init();
   pag.defaultOptions.isMirrorY = true;
   pag.defaultOptions.rotationNum = rotationNum;
   pag.defaultOptions.scale = 2;
-  random = new Random();
+  ppe.options.canvas = canvas;
   overlayContext.fillStyle = 'white';
   text.init(overlayContext);
-  setPlayer();
-  player.isAlive = false;
   onSeedChanged(6008729);
-  beginTitle();
+  initCursorEvents();
   if (ir.loadFromUrl() === true) {
     beginReplay();
+  } else {
+    beginTitle();
   }
-  document.onmousedown = (e) => {
-    onMouseTouchDown(e.pageX, e.pageY);
-  };
-  document.ontouchstart = (e) => {
-    onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
-  };
-  document.onmousemove = (e) => {
-    onMouseTouchMove(e.pageX, e.pageY);
-  };
-  document.ontouchmove = (e) => {
-    e.preventDefault();
-    onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
-  };
-  document.onmouseup = (e) => {
-    onMouseTouchUp(e);
-  };
-  document.ontouchend = (e) => {
-    onMouseTouchUp(e);
-  };
   update();
 };
 
-function onMouseTouchDown(x, y) {
-  setCursorPos(x, y);
-  sss.playEmpty();
-  isClicked = true;
-}
-
-function onMouseTouchMove(x, y) {
-  setCursorPos(x, y);
-}
-
-function setCursorPos(x, y) {
-  cursorPos.x = clamp(Math.round
-    (((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth),
-    0, pixelWidth - 1);
-  cursorPos.y = clamp(Math.round
-    (((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth),
-    0, pixelWidth - 1);
-}
-
-function onMouseTouchUp(e) {
-}
-
 function beginGame() {
-  isInGame = true;
-  isReplaying = false;
-  titleTicks = gameoverTicks = 0;
+  scene = Scene.game;
   score = ticks = 0;
   sss.playBgm();
   ir.startRecord();
@@ -110,80 +59,45 @@ function beginGame() {
 }
 
 function endGame() {
-  isReplaying = false;
-  if (!isInGame) {
+  if (scene === Scene.gameover || scene === Scene.replay) {
     return;
   }
-  isInGame = false;
-  gameoverTicks = 60;
+  scene = Scene.gameover;
+  ticks = 0;
   sss.stopBgm();
   ir.saveAsUrl();
 }
 
 function beginTitle() {
-  titleTicks = 1;
+  scene = Scene.title;
   ticks = 0;
-  isReplaying = false;
 }
 
 function beginReplay() {
-  titleTicks = titleDuration;
+  const status = ir.startReplay();
+  if (status !== false) {
+    setStatus(status);
+    scene = Scene.replay;
+  } else {
+    beginTitle();
+  }
 }
 
 function update() {
   requestAnimationFrame(update);
-  if (!isInGame && isClicked) {
-    beginGame();
-  }
-  isClicked = false;
   frameCursorPos.x = cursorPos.x;
   frameCursorPos.y = cursorPos.y;
-  if (isInGame) {
-    ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
-  }
   context.clearRect(0, 0, 128, 128);
   bloomContext.clearRect(0, 0, 64, 64);
   overlayContext.clearRect(0, 0, 128, 128);
-  if (titleTicks > 0) {
-    if (titleTicks < 120) {
-      text.draw('INSTANT REPLAY', 30, 50);
-      text.draw('SAMPLE GAME', 40, 80);
-    } else if (titleTicks === titleDuration) {
-      const status = ir.startReplay();
-      if (status !== false) {
-        setStatus(status);
-        isReplaying = true;
-      } else {
-        beginTitle();
-      }
-    }
-    if (titleTicks >= titleDuration) {
-      text.draw('REPLAY', 50, 70);
-      const events = ir.getEvents();
-      if (events !== false) {
-        frameCursorPos.x = events[0];
-        frameCursorPos.y = events[1];
-      } else {
-        beginTitle();
-      }
-    }
-    titleTicks++;
-  }
+  handleScene();
   sss.update();
-  if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
+  if (random.get01() < 0.015 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
+    addScore();
   }
   ppe.update();
-  const pts = ppe.getParticles();
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    const r = Math.floor(Math.sqrt(p.color.r) * 255);
-    const g = Math.floor(Math.sqrt(p.color.g) * 255);
-    const b = Math.floor(Math.sqrt(p.color.b) * 255);
-    const a = Math.max(p.color.r, p.color.g, p.color.b) / 3;
-    bloomContext.fillStyle = `rgba(${r},${g},${b}, ${a})`;
-    bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);
-  }
+  drawBloomParticles();
   actors.sort((a, b) => a.priority - b.priority);
   forEach(actors, a => {
     a.update();
@@ -197,15 +111,54 @@ function update() {
     }
   }
   text.draw(`${score}`, 1, 1);
-  if (gameoverTicks > 0) {
+  ticks++;
+}
+
+function handleScene() {
+  if (scene !== Scene.game && isClicked) {
+    beginGame();
+  }
+  isClicked = false;
+  if (scene === Scene.game) {
+    ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+  }
+  if (scene === Scene.gameover) {
     text.draw('GAME OVER', 40, 60);
-    gameoverTicks--;
-    if (gameoverTicks <= 0) {
+    if (ticks >= 60) {
       beginTitle();
     }
   }
-  ticks++;
-};
+  if (scene === Scene.title) {
+    text.draw('INSTANT REPLAY', 30, 50);
+    text.draw('SAMPLE GAME', 40, 80);
+    if (ticks >= 120) {
+      beginReplay();
+    }
+  }
+  if (scene === Scene.replay) {
+    text.draw('REPLAY', 50, 70);
+    const events = ir.getEvents();
+    if (events !== false) {
+      frameCursorPos.x = events[0];
+      frameCursorPos.y = events[1];
+    } else {
+      beginTitle();
+    }
+  }
+}
+
+function drawBloomParticles() {
+  const pts = ppe.getParticles();
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const r = Math.floor(Math.sqrt(p.color.r) * 255);
+    const g = Math.floor(Math.sqrt(p.color.g) * 255);
+    const b = Math.floor(Math.sqrt(p.color.b) * 255);
+    const a = Math.max(p.color.r, p.color.g, p.color.b) / 3;
+    bloomContext.fillStyle = `rgba(${r},${g},${b}, ${a})`;
+    bloomContext.fillRect((p.pos.x - p.size) / 2, (p.pos.y - p.size) / 2, p.size, p.size);
+  }
+}
 
 function setPlayer(status = null) {
   player = {};
@@ -236,7 +189,7 @@ function setPlayer(status = null) {
   };
   player.destroy = function () {
     ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
-    if (isInGame) {
+    if (scene === Scene.game) {
       sss.play('u1', 4);
     }
     player.isAlive = false;
@@ -279,7 +232,7 @@ function setLaser(status = null) {
       context.fillRect(0, this.pos - w / 2, pixelWidth, w);
     }
     if (this.ticks === 20) {
-      if (isInGame) {
+      if (scene === Scene.game) {
         sss.play('l1');
         sss.play('s1');
       }
@@ -299,7 +252,7 @@ function setLaser(status = null) {
         ppe.emit('m1', x, y, a, 1, 0.5, 0.7);
       }
     }
-    if (player.isAlive !== false) {
+    if (player != null && player.isAlive !== false) {
       let pp = this.isVertical ? player.pos.x : player.pos.y;
       const lw = this.ticks === 20 ? w * 0.4 : w * 1.5;
       if (Math.abs(this.pos - pp) < lw) {
@@ -319,12 +272,11 @@ function setLaser(status = null) {
     return ['l', this.isVertical, this.pos, this.ticks];
   };
   laser.priority = 1;
-  addScore();
   actors.push(laser);
 }
 
 function addScore() {
-  if (isInGame || isReplaying) {
+  if (scene === Scene.game || scene === Scene.replay) {
     score++;
   }
 }
@@ -390,9 +342,66 @@ function onSeedChanged(seed: number) {
   sss.setSeed(seed);
   ppe.setSeed(seed);
   ppe.reset();
-  if (isInGame) {
+  if (scene === Scene.game) {
     sss.playBgm();
   }
+}
+
+function initCanvases() {
+  canvas = <HTMLCanvasElement>document.getElementById('main');
+  canvas.width = canvas.height = pixelWidth;
+  ppe.options.canvas = canvas;
+  context = canvas.getContext('2d');
+  bloomCanvas = <HTMLCanvasElement>document.getElementById('bloom');
+  bloomCanvas.width = bloomCanvas.height = pixelWidth / 2;
+  bloomContext = bloomCanvas.getContext('2d');
+  overlayCanvas = <HTMLCanvasElement>document.getElementById('overlay');
+  overlayCanvas.width = canvas.height = pixelWidth;
+  overlayContext = overlayCanvas.getContext('2d');
+}
+
+function initCursorEvents() {
+  document.onmousedown = (e) => {
+    onMouseTouchDown(e.pageX, e.pageY);
+  };
+  document.ontouchstart = (e) => {
+    onMouseTouchDown(e.touches[0].pageX, e.touches[0].pageY);
+  };
+  document.onmousemove = (e) => {
+    onMouseTouchMove(e.pageX, e.pageY);
+  };
+  document.ontouchmove = (e) => {
+    e.preventDefault();
+    onMouseTouchMove(e.touches[0].pageX, e.touches[0].pageY);
+  };
+  document.onmouseup = (e) => {
+    onMouseTouchUp(e);
+  };
+  document.ontouchend = (e) => {
+    onMouseTouchUp(e);
+  };
+}
+
+function onMouseTouchDown(x, y) {
+  setCursorPos(x, y);
+  sss.playEmpty();
+  isClicked = true;
+}
+
+function onMouseTouchMove(x, y) {
+  setCursorPos(x, y);
+}
+
+function setCursorPos(x, y) {
+  cursorPos.x = clamp(Math.round
+    (((x - canvas.offsetLeft) / canvas.clientWidth + 0.5) * pixelWidth),
+    0, pixelWidth - 1);
+  cursorPos.y = clamp(Math.round
+    (((y - canvas.offsetTop) / canvas.clientHeight + 0.5) * pixelWidth),
+    0, pixelWidth - 1);
+}
+
+function onMouseTouchUp(e) {
 }
 
 function forEach(array: any[], func: Function) {
