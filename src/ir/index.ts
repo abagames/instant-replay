@@ -2,7 +2,7 @@ declare const require: any;
 const LZString = require('lz-string');
 
 export let options = {
-  frameCount: 180,
+  frameCount: 180
 };
 
 let statuses: any[];
@@ -12,8 +12,7 @@ let replayingIndex: number;
 
 export function startRecord() {
   initStatusesAndEvents();
-  recordingIndex = 0;
-  replayingIndex = 0;
+  recordingIndex = replayingIndex = 0;
 }
 
 function initStatusesAndEvents() {
@@ -38,7 +37,7 @@ export function startReplay() {
   if (events == null || events[0] == null) {
     return false;
   }
-  calcStartingReplayingIndex();
+  calcStartingReplayIndex();
   return statuses[replayingIndex];
 }
 
@@ -54,7 +53,7 @@ export function getEvents() {
   return e;
 }
 
-function calcStartingReplayingIndex() {
+function calcStartingReplayIndex() {
   replayingIndex = recordingIndex + 1;
   if (replayingIndex >= options.frameCount || events[replayingIndex] == null) {
     replayingIndex = 0;
@@ -66,7 +65,7 @@ export function saveAsUrl() {
     return false;
   }
   const baseUrl = window.location.href.split('?')[0];
-  calcStartingReplayingIndex();
+  calcStartingReplayIndex();
   const encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(
     { st: statuses[replayingIndex], ev: events, idx: recordingIndex }
   ));
@@ -101,7 +100,7 @@ export function loadFromUrl() {
     initStatusesAndEvents();
     recordingIndex = data.idx;
     events = data.ev;
-    calcStartingReplayingIndex();
+    calcStartingReplayIndex();
     statuses[replayingIndex] = data.st;
     return true;
   } catch (e) {
