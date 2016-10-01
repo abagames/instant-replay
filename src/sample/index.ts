@@ -28,7 +28,7 @@ let random: Random;
 window.onload = () => {
   sss.init();
   debug.enableShowingErrors()
-  debug.initSeedUi(onSeedChanged);
+  //debug.initSeedUi(onSeedChanged);
   canvas = <HTMLCanvasElement>document.getElementById('main');
   canvas.width = canvas.height = pixelWidth;
   ppe.options.canvas = canvas;
@@ -47,6 +47,7 @@ window.onload = () => {
   text.init(overlayContext);
   setPlayer();
   player.isAlive = false;
+  onSeedChanged(6008729);
   beginTitle();
   if (ir.loadFromUrl() === true) {
     beginReplay();
@@ -118,10 +119,10 @@ function endGame() {
   isInGame = false;
   gameoverTicks = 60;
   sss.stopBgm();
+  ir.saveAsUrl();
 }
 
 function beginTitle() {
-  ir.saveAsUrl();
   titleTicks = 1;
   ticks = 0;
 }
@@ -134,7 +135,7 @@ function update() {
   requestAnimationFrame(update);
   frameCursorPos.x = cursorPos.x;
   frameCursorPos.y = cursorPos.y;
-  if (isInGame || gameoverTicks > 0) {
+  if (isInGame) {
     ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
   }
   context.clearRect(0, 0, 128, 128);
@@ -165,7 +166,7 @@ function update() {
     titleTicks++;
   }
   sss.update();
-  if (random.get01() < 0.01 * Math.sqrt(ticks * 0.01 + 1)) {
+  if (random.get01() < 0.02 * Math.sqrt(ticks * 0.01 + 1)) {
     setLaser();
   }
   ppe.update();
@@ -231,7 +232,9 @@ function setPlayer(status = null) {
   };
   player.destroy = function () {
     ppe.emit('e1', this.pos.x, this.pos.y, 0, 3, 3);
-    sss.play('u1', 5);
+    if (isInGame) {
+      sss.play('u1', 4);
+    }
     player.isAlive = false;
     endGame();
   };
