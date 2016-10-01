@@ -5,21 +5,29 @@ export let options = {
   frameCount: 180,
 };
 
-let statusAndEvents: any[];
+let statuses: any[];
+let events: any[];
 let recordingIndex: number;
 let replayingIndex: number;
 
 export function startRecord() {
-  statusAndEvents = [];
-  for (let i = 0; i < options.frameCount; i++) {
-    statusAndEvents.push(null);
-  }
+  initStatusesAndEvents();
   recordingIndex = 0;
   replayingIndex = 0;
 }
 
-export function record(status, events) {
-  statusAndEvents[recordingIndex] = { status, events };
+function initStatusesAndEvents() {
+  statuses = [];
+  events = [];
+  for (let i = 0; i < options.frameCount; i++) {
+    statuses.push(null);
+    events.push(null);
+  }
+}
+
+export function record(status, _events) {
+  statuses[recordingIndex] = status;
+  events[recordingIndex] = _events;
   recordingIndex++;
   if (recordingIndex >= options.frameCount) {
     recordingIndex = 0;
@@ -27,21 +35,18 @@ export function record(status, events) {
 }
 
 export function startReplay() {
-  if (statusAndEvents == null || statusAndEvents[0] == null) {
+  if (events == null || events[0] == null) {
     return false;
   }
-  replayingIndex = recordingIndex + 1;
-  if (replayingIndex >= options.frameCount || statusAndEvents[replayingIndex] == null) {
-    replayingIndex = 0;
-  }
-  return statusAndEvents[replayingIndex].status;
+  calcStartingReplayingIndex();
+  return statuses[replayingIndex];
 }
 
 export function getEvents() {
   if (replayingIndex === recordingIndex) {
     return false;
   }
-  let e = statusAndEvents[replayingIndex].events;
+  let e = events[replayingIndex];
   replayingIndex++;
   if (replayingIndex >= options.frameCount) {
     replayingIndex = 0;
@@ -49,13 +54,21 @@ export function getEvents() {
   return e;
 }
 
+function calcStartingReplayingIndex() {
+  replayingIndex = recordingIndex + 1;
+  if (replayingIndex >= options.frameCount || events[replayingIndex] == null) {
+    replayingIndex = 0;
+  }
+}
+
 export function saveAsUrl() {
-  if (statusAndEvents == null || statusAndEvents[0] == null) {
+  if (events == null || events[0] == null) {
     return false;
   }
   const baseUrl = window.location.href.split('?')[0];
+  calcStartingReplayingIndex();
   const encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(
-    { rec: statusAndEvents, idx: recordingIndex }
+    { st: statuses[replayingIndex], ev: events, idx: recordingIndex }
   ));
   const url = `${baseUrl}?d=${encDataStr}`;
   try {
@@ -85,8 +98,11 @@ export function loadFromUrl() {
   }
   try {
     const data = JSON.parse(LZString.decompressFromEncodedURIComponent(encDataStr));
-    statusAndEvents = data.rec;
+    initStatusesAndEvents();
     recordingIndex = data.idx;
+    events = data.ev;
+    calcStartingReplayingIndex();
+    statuses[replayingIndex] = data.st;
     return true;
   } catch (e) {
     console.log(e);
