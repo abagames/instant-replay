@@ -420,16 +420,6 @@ function clamp(v, min, max) {
   }
 }
 
-function wrap(v, min, max) {
-  const w = max - min;
-  const o = v - min;
-  if (o >= 0) {
-    return o % w + min;
-  } else {
-    return w + o % w + min;
-  }
-}
-
 class Random {
   x: number;
   y: number;
