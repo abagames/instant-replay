@@ -118,6 +118,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	        replayingIndex = 0;
 	    }
 	}
+	function objectToArray(object, propertyNames) {
+	    var array = [];
+	    for (var i = 0; i < propertyNames.length; i++) {
+	        var ps = propertyNames[i].split('.');
+	        var o = object;
+	        for (var j = 0; j < ps.length; j++) {
+	            o = o[ps[j]];
+	        }
+	        array.push(o);
+	    }
+	    return array;
+	}
+	exports.objectToArray = objectToArray;
+	function arrayToObject(array, propertyNames, object) {
+	    if (object === void 0) { object = {}; }
+	    for (var i = 0; i < propertyNames.length; i++) {
+	        var ps = propertyNames[i].split('.');
+	        var o = object;
+	        for (var j = 0; j < ps.length; j++) {
+	            if (j < ps.length - 1) {
+	                o = o[ps[j]] = {};
+	            }
+	            else {
+	                o[ps[j]] = array[i];
+	            }
+	        }
+	    }
+	    return object;
+	}
+	exports.arrayToObject = arrayToObject;
 	function saveAsUrl() {
 	    if (events == null || events[0] == null) {
 	        return false;

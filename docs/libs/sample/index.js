@@ -121,6 +121,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	        replayingIndex = 0;
 	    }
 	}
+	function objectToArray(object, propertyNames) {
+	    var array = [];
+	    for (var i = 0; i < propertyNames.length; i++) {
+	        var ps = propertyNames[i].split('.');
+	        var o = object;
+	        for (var j = 0; j < ps.length; j++) {
+	            o = o[ps[j]];
+	        }
+	        array.push(o);
+	    }
+	    return array;
+	}
+	exports.objectToArray = objectToArray;
+	function arrayToObject(array, propertyNames, object) {
+	    if (object === void 0) { object = {}; }
+	    for (var i = 0; i < propertyNames.length; i++) {
+	        var ps = propertyNames[i].split('.');
+	        var o = object;
+	        for (var j = 0; j < ps.length; j++) {
+	            if (j < ps.length - 1) {
+	                o = o[ps[j]] = {};
+	            }
+	            else {
+	                o[ps[j]] = array[i];
+	            }
+	        }
+	    }
+	    return object;
+	}
+	exports.arrayToObject = arrayToObject;
 	function saveAsUrl() {
 	    if (events == null || events[0] == null) {
 	        return false;
@@ -725,7 +755,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var ppe = __webpack_require__(7);
 	var ir = __webpack_require__(1);
 	var text = __webpack_require__(8);
-	var debug = __webpack_require__(3);
 	var rotationNum = 16;
 	var pixelWidth = 128;
 	var actors = [];
@@ -752,7 +781,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	})(Scene || (Scene = {}));
 	;
 	window.onload = function () {
-	    debug.enableShowingErrors();
+	    //debug.enableShowingErrors()
 	    //debug.initSeedUi(onSeedChanged);
 	    initCanvases();
 	    random = new Random();
@@ -882,21 +911,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	function setPlayer(status) {
 	    if (status === void 0) { status = null; }
-	    player = {};
-	    player.pixels = pag.generate([
-	        ' x',
-	        'xxxx'
-	    ]);
+	    var propNames = ['type', 'pos.x', 'pos.y', 'ppos.x', 'ppos.y', 'angle'];
 	    if (status == null) {
+	        player = { type: 'p' };
 	        player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	        player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
 	        player.angle = -Math.PI / 2;
 	    }
 	    else {
-	        player.pos = { x: status[1], y: status[2] };
-	        player.ppos = { x: status[3], y: status[4] };
-	        player.angle = status[5];
+	        player = ir.arrayToObject(status, propNames);
 	    }
+	    player.pixels = pag.generate([
+	        ' x',
+	        'xxxx'
+	    ]);
 	    player.update = function () {
 	        this.pos.x = frameCursorPos.x;
 	        this.pos.y = frameCursorPos.y;
@@ -918,7 +946,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        endGame();
 	    };
 	    player.getStatus = function () {
-	        return ['p', this.pos.x, this.pos.y, this.ppos.x, this.ppos.y, this.angle];
+	        return ir.objectToArray(this, propNames);
 	    };
 	    player.priority = 0;
 	    actors.push(player);
@@ -926,16 +954,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	;
 	function setLaser(status) {
 	    if (status === void 0) { status = null; }
-	    var laser = {};
+	    var propNames = ['type', 'isVertical', 'pos', 'ticks'];
+	    var laser;
 	    if (status == null) {
+	        laser = { type: 'l' };
 	        laser.isVertical = random.get01() > 0.5;
 	        laser.pos = Math.floor(random.get01() * pixelWidth);
 	        laser.ticks = 0;
 	    }
 	    else {
-	        laser.isVertical = status[1];
-	        laser.pos = status[2];
-	        laser.ticks = status[3];
+	        laser = ir.arrayToObject(status, propNames);
 	    }
 	    laser.update = function () {
 	        var w = 0;
@@ -997,7 +1025,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    laser.getStatus = function () {
-	        return ['l', this.isVertical, this.pos, this.ticks];
+	        return ir.objectToArray(this, propNames);
 	    };
 	    laser.priority = 1;
 	    actors.push(laser);
@@ -1132,6 +1160,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	var Random = (function () {
 	    function Random() {
+	        this.propNames = ['x', 'y', 'z', 'w'];
 	        this.setSeed();
 	        this.get01 = this.get01.bind(this);
 	    }
@@ -1158,13 +1187,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return this.getInt() / 0x7fffffff;
 	    };
 	    Random.prototype.getStatus = function () {
-	        return [this.x, this.y, this.z, this.w];
+	        return ir.objectToArray(this, this.propNames);
 	    };
 	    Random.prototype.setStatus = function (status) {
-	        this.x = status[0];
-	        this.y = status[1];
-	        this.z = status[2];
-	        this.w = status[3];
+	        ir.arrayToObject(status, this.propNames, this);
 	    };
 	    return Random;
 	}());

@@ -28,7 +28,7 @@ enum Scene {
 };
 
 window.onload = () => {
-  debug.enableShowingErrors()
+  //debug.enableShowingErrors()
   //debug.initSeedUi(onSeedChanged);
   initCanvases();
   random = new Random();
@@ -161,20 +161,19 @@ function drawBloomParticles() {
 }
 
 function setPlayer(status = null) {
-  player = {};
-  player.pixels = pag.generate([
-    ' x',
-    'xxxx'
-  ]);
+  const propNames = ['type', 'pos.x', 'pos.y', 'ppos.x', 'ppos.y', 'angle'];
   if (status == null) {
+    player = { type: 'p' };
     player.pos = { x: pixelWidth / 2, y: pixelWidth / 2 };
     player.ppos = { x: pixelWidth / 2, y: pixelWidth / 2 };
     player.angle = -Math.PI / 2;
   } else {
-    player.pos = { x: status[1], y: status[2] };
-    player.ppos = { x: status[3], y: status[4] };
-    player.angle = status[5];
+    player = ir.arrayToObject(status, propNames);
   }
+  player.pixels = pag.generate([
+    ' x',
+    'xxxx'
+  ]);
   player.update = function () {
     this.pos.x = frameCursorPos.x;
     this.pos.y = frameCursorPos.y;
@@ -196,22 +195,22 @@ function setPlayer(status = null) {
     endGame();
   };
   player.getStatus = function () {
-    return ['p', this.pos.x, this.pos.y, this.ppos.x, this.ppos.y, this.angle];
+    return ir.objectToArray(this, propNames);
   };
   player.priority = 0;
   actors.push(player);
 };
 
 function setLaser(status = null) {
-  const laser: any = {};
+  const propNames = ['type', 'isVertical', 'pos', 'ticks'];
+  let laser: any;
   if (status == null) {
+    laser = { type: 'l' };
     laser.isVertical = random.get01() > 0.5;
     laser.pos = Math.floor(random.get01() * pixelWidth);
     laser.ticks = 0;
   } else {
-    laser.isVertical = status[1];
-    laser.pos = status[2];
-    laser.ticks = status[3];
+    laser = ir.arrayToObject(status, propNames);
   }
   laser.update = function () {
     let w = 0;
@@ -269,7 +268,7 @@ function setLaser(status = null) {
     }
   };
   laser.getStatus = function () {
-    return ['l', this.isVertical, this.pos, this.ticks];
+    return ir.objectToArray(this, propNames);
   };
   laser.priority = 1;
   actors.push(laser);
@@ -455,14 +454,13 @@ class Random {
     this.get01 = this.get01.bind(this);
   }
 
+  propNames = ['x', 'y', 'z', 'w'];
+
   getStatus() {
-    return [this.x, this.y, this.z, this.w];
+    return ir.objectToArray(this, this.propNames);
   }
 
   setStatus(status) {
-    this.x = status[0];
-    this.y = status[1];
-    this.z = status[2];
-    this.w = status[3];
+    ir.arrayToObject(status, this.propNames, this);
   }
 }

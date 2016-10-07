@@ -60,6 +60,34 @@ function calcStartingReplayIndex() {
   }
 }
 
+export function objectToArray(object: any, propertyNames: string[]) {
+  let array = [];
+  for (let i = 0; i < propertyNames.length; i++) {
+    const ps = propertyNames[i].split('.');
+    let o = object;
+    for (let j = 0; j < ps.length; j++) {
+      o = o[ps[j]];
+    }
+    array.push(o);
+  }
+  return array;
+}
+
+export function arrayToObject(array: any[], propertyNames: string[], object: any = {}) {
+  for (let i = 0; i < propertyNames.length; i++) {
+    const ps = propertyNames[i].split('.');
+    let o = object;
+    for (let j = 0; j < ps.length; j++) {
+      if (j < ps.length - 1) {
+        o = o[ps[j]] = {};
+      } else {
+        o[ps[j]] = array[i];
+      }
+    }
+  }
+  return object;
+}
+
 export function saveAsUrl() {
   if (events == null || events[0] == null) {
     return false;
