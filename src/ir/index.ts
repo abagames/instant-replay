@@ -79,7 +79,10 @@ export function arrayToObject(array: any[], propertyNames: string[], object: any
     let o = object;
     for (let j = 0; j < ps.length; j++) {
       if (j < ps.length - 1) {
-        o = o[ps[j]] = {};
+        if (o[ps[j]] == null) {
+          o[ps[j]] = {};
+        }
+        o = o[ps[j]];
       } else {
         o[ps[j]] = array[i];
       }
