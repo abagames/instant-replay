@@ -1,16 +1,21 @@
 {
   "name": "instant-replay",
   "version": "1.0.0",
-  "description": "record and replay a gameplay",
+  "description": "Record and replay a gameplay",
   "author": "ABA",
   "license": "MIT",
   "devDependencies": {
     "glob": "^7.0.5",
     "ts-loader": "^0.8.2",
     "typescript": "^2.0.10",
-    "webpack-livereload-plugin": "^0.8.2"
+    "webpack": "^1.13.3",
+    "webpack-dev-server": "^1.16.2"
   },
   "dependencies": {
     "lz-string": "^1.4.4"
+  },
+  "scripts": {
+    "wds": "webpack-dev-server --inline",
+    "build": "webpack"
   }
 }
