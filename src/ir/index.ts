@@ -1,14 +1,19 @@
-declare const require: any;
-const LZString = require('lz-string');
+import * as LZString from 'lz-string';
 
 export let options = {
-  frameCount: 180
+  frameCount: 180,
+  isRecordingEventsAsString: false,
+  maxUrlLength: 2000
 };
 
 let statuses: any[];
 let events: any[];
 let recordingIndex: number;
 let replayingIndex: number;
+
+export function setOptions(_options) {
+  options = _options;
+}
 
 export function startRecord() {
   initStatusesAndEvents();
@@ -18,9 +23,11 @@ export function startRecord() {
 function initStatusesAndEvents() {
   statuses = [];
   events = [];
-  for (let i = 0; i < options.frameCount; i++) {
-    statuses.push(null);
-    events.push(null);
+  if (options.frameCount > 0) {
+    for (let i = 0; i < options.frameCount; i++) {
+      statuses.push(null);
+      events.push(null);
+    }
   }
 }
 
@@ -33,6 +40,14 @@ export function record(status, _events) {
   }
 }
 
+export function recordInitialStatus(status) {
+  statuses.push(status);
+}
+
+export function recordEvents(_events) {
+  events.push(_events);
+}
+
 export function startReplay() {
   if (events == null || events[0] == null) {
     return false;
@@ -41,11 +56,26 @@ export function startReplay() {
   return statuses[replayingIndex];
 }
 
+function calcStartingReplayIndex() {
+  if (options.frameCount > 0) {
+    replayingIndex = recordingIndex + 1;
+    if (replayingIndex >= options.frameCount || events[replayingIndex] == null) {
+      replayingIndex = 0;
+    }
+  } else {
+    replayingIndex = 0;
+  }
+}
+
 export function getEvents() {
+  return options.frameCount > 0 ? getEventsFrameCount() : getEventsAllFrames();
+}
+
+function getEventsFrameCount() {
   if (replayingIndex === recordingIndex) {
     return false;
   }
-  let e = events[replayingIndex];
+  const e = events[replayingIndex];
   replayingIndex++;
   if (replayingIndex >= options.frameCount) {
     replayingIndex = 0;
@@ -53,11 +83,13 @@ export function getEvents() {
   return e;
 }
 
-function calcStartingReplayIndex() {
-  replayingIndex = recordingIndex + 1;
-  if (replayingIndex >= options.frameCount || events[replayingIndex] == null) {
-    replayingIndex = 0;
+function getEventsAllFrames() {
+  if (replayingIndex >= events.length) {
+    return false;
   }
+  const e = events[replayingIndex];
+  replayingIndex++;
+  return e;
 }
 
 export function objectToArray(object: any, propertyNames: string[]) {
@@ -97,10 +129,25 @@ export function saveAsUrl() {
   }
   const baseUrl = window.location.href.split('?')[0];
   calcStartingReplayIndex();
-  const encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(
-    { st: statuses[replayingIndex], ev: events, idx: recordingIndex }
-  ));
-  const url = `${baseUrl}?d=${encDataStr}`;
+  const data: any = { st: statuses[replayingIndex] };
+  if (options.frameCount > 0) {
+    data.idx = recordingIndex;
+  }
+  if (!options.isRecordingEventsAsString) {
+    data.ev = events;
+  } else {
+    data.esl = events[0].length;
+  }
+  const encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(data));
+  let url = `${baseUrl}?d=${encDataStr}`;
+  if (options.isRecordingEventsAsString) {
+    const eventsDataStr = LZString.compressToEncodedURIComponent(events.join(''));
+    url += `&e=${eventsDataStr}`;
+  }
+  if (url.length > options.maxUrlLength) {
+    console.log('too long to record. url length: ' + url.length);
+    return false;
+  }
   try {
     window.history.replaceState({}, '', url);
   } catch (e) {
@@ -116,11 +163,15 @@ export function loadFromUrl() {
   }
   let params = query.split('&');
   let encDataStr: string;
+  let eventsDataStr: string;
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
     const pair = param.split('=');
     if (pair[0] === 'd') {
       encDataStr = pair[1];
+    }
+    if (pair[0] === 'e') {
+      eventsDataStr = pair[1];
     }
   }
   if (encDataStr == null) {
@@ -129,8 +180,16 @@ export function loadFromUrl() {
   try {
     const data = JSON.parse(LZString.decompressFromEncodedURIComponent(encDataStr));
     initStatusesAndEvents();
-    recordingIndex = data.idx;
-    events = data.ev;
+    if (options.frameCount > 0) {
+      recordingIndex = data.idx;
+    }
+    if (data.ev != null) {
+      events = data.ev;
+    }
+    if (eventsDataStr != null) {
+      const eventsStr = LZString.decompressFromEncodedURIComponent(eventsDataStr);
+      events = eventsStr.match(new RegExp(`.{1,${data.esl}}`, 'g'));
+    }
     calcStartingReplayIndex();
     statuses[replayingIndex] = data.st;
     return true;

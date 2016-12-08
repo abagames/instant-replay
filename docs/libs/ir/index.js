@@ -64,12 +64,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var LZString = __webpack_require__(2);
 	exports.options = {
-	    frameCount: 180
+	    frameCount: 180,
+	    isRecordingEventsAsString: false,
+	    maxUrlLength: 2000
 	};
 	var statuses;
 	var events;
 	var recordingIndex;
 	var replayingIndex;
+	function setOptions(_options) {
+	    exports.options = _options;
+	}
+	exports.setOptions = setOptions;
 	function startRecord() {
 	    initStatusesAndEvents();
 	    recordingIndex = replayingIndex = 0;
@@ -78,9 +84,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	function initStatusesAndEvents() {
 	    statuses = [];
 	    events = [];
-	    for (var i = 0; i < exports.options.frameCount; i++) {
-	        statuses.push(null);
-	        events.push(null);
+	    if (exports.options.frameCount > 0) {
+	        for (var i = 0; i < exports.options.frameCount; i++) {
+	            statuses.push(null);
+	            events.push(null);
+	        }
 	    }
 	}
 	function record(status, _events) {
@@ -92,6 +100,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 	exports.record = record;
+	function recordInitialStatus(status) {
+	    statuses.push(status);
+	}
+	exports.recordInitialStatus = recordInitialStatus;
+	function recordEvents(_events) {
+	    events.push(_events);
+	}
+	exports.recordEvents = recordEvents;
 	function startReplay() {
 	    if (events == null || events[0] == null) {
 	        return false;
@@ -100,7 +116,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return statuses[replayingIndex];
 	}
 	exports.startReplay = startReplay;
+	function calcStartingReplayIndex() {
+	    if (exports.options.frameCount > 0) {
+	        replayingIndex = recordingIndex + 1;
+	        if (replayingIndex >= exports.options.frameCount || events[replayingIndex] == null) {
+	            replayingIndex = 0;
+	        }
+	    }
+	    else {
+	        replayingIndex = 0;
+	    }
+	}
 	function getEvents() {
+	    return exports.options.frameCount > 0 ? getEventsFrameCount() : getEventsAllFrames();
+	}
+	exports.getEvents = getEvents;
+	function getEventsFrameCount() {
 	    if (replayingIndex === recordingIndex) {
 	        return false;
 	    }
@@ -111,12 +142,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    return e;
 	}
-	exports.getEvents = getEvents;
-	function calcStartingReplayIndex() {
-	    replayingIndex = recordingIndex + 1;
-	    if (replayingIndex >= exports.options.frameCount || events[replayingIndex] == null) {
-	        replayingIndex = 0;
+	function getEventsAllFrames() {
+	    if (replayingIndex >= events.length) {
+	        return false;
 	    }
+	    var e = events[replayingIndex];
+	    replayingIndex++;
+	    return e;
 	}
 	function objectToArray(object, propertyNames) {
 	    var array = [];
@@ -157,8 +189,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    var baseUrl = window.location.href.split('?')[0];
 	    calcStartingReplayIndex();
-	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify({ st: statuses[replayingIndex], ev: events, idx: recordingIndex }));
+	    var data = { st: statuses[replayingIndex] };
+	    if (exports.options.frameCount > 0) {
+	        data.idx = recordingIndex;
+	    }
+	    if (!exports.options.isRecordingEventsAsString) {
+	        data.ev = events;
+	    }
+	    else {
+	        data.esl = events[0].length;
+	    }
+	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(data));
 	    var url = baseUrl + "?d=" + encDataStr;
+	    if (exports.options.isRecordingEventsAsString) {
+	        var eventsDataStr = LZString.compressToEncodedURIComponent(events.join(''));
+	        url += "&e=" + eventsDataStr;
+	    }
+	    if (url.length > exports.options.maxUrlLength) {
+	        console.log('too long to record. url length: ' + url.length);
+	        return false;
+	    }
 	    try {
 	        window.history.replaceState({}, '', url);
 	    }
@@ -175,11 +225,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    var params = query.split('&');
 	    var encDataStr;
+	    var eventsDataStr;
 	    for (var i = 0; i < params.length; i++) {
 	        var param = params[i];
 	        var pair = param.split('=');
 	        if (pair[0] === 'd') {
 	            encDataStr = pair[1];
+	        }
+	        if (pair[0] === 'e') {
+	            eventsDataStr = pair[1];
 	        }
 	    }
 	    if (encDataStr == null) {
@@ -188,8 +242,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    try {
 	        var data = JSON.parse(LZString.decompressFromEncodedURIComponent(encDataStr));
 	        initStatusesAndEvents();
-	        recordingIndex = data.idx;
-	        events = data.ev;
+	        if (exports.options.frameCount > 0) {
+	            recordingIndex = data.idx;
+	        }
+	        if (data.ev != null) {
+	            events = data.ev;
+	        }
+	        if (eventsDataStr != null) {
+	            var eventsStr = LZString.decompressFromEncodedURIComponent(eventsDataStr);
+	            events = eventsStr.match(new RegExp(".{1," + data.esl + "}", 'g'));
+	        }
 	        calcStartingReplayIndex();
 	        statuses[replayingIndex] = data.st;
 	        return true;

@@ -67,12 +67,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var LZString = __webpack_require__(2);
 	exports.options = {
-	    frameCount: 180
+	    frameCount: 180,
+	    isRecordingEventsAsString: false,
+	    maxUrlLength: 2000
 	};
 	var statuses;
 	var events;
 	var recordingIndex;
 	var replayingIndex;
+	function setOptions(_options) {
+	    exports.options = _options;
+	}
+	exports.setOptions = setOptions;
 	function startRecord() {
 	    initStatusesAndEvents();
 	    recordingIndex = replayingIndex = 0;
@@ -81,9 +87,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	function initStatusesAndEvents() {
 	    statuses = [];
 	    events = [];
-	    for (var i = 0; i < exports.options.frameCount; i++) {
-	        statuses.push(null);
-	        events.push(null);
+	    if (exports.options.frameCount > 0) {
+	        for (var i = 0; i < exports.options.frameCount; i++) {
+	            statuses.push(null);
+	            events.push(null);
+	        }
 	    }
 	}
 	function record(status, _events) {
@@ -95,6 +103,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 	exports.record = record;
+	function recordInitialStatus(status) {
+	    statuses.push(status);
+	}
+	exports.recordInitialStatus = recordInitialStatus;
+	function recordEvents(_events) {
+	    events.push(_events);
+	}
+	exports.recordEvents = recordEvents;
 	function startReplay() {
 	    if (events == null || events[0] == null) {
 	        return false;
@@ -103,7 +119,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return statuses[replayingIndex];
 	}
 	exports.startReplay = startReplay;
+	function calcStartingReplayIndex() {
+	    if (exports.options.frameCount > 0) {
+	        replayingIndex = recordingIndex + 1;
+	        if (replayingIndex >= exports.options.frameCount || events[replayingIndex] == null) {
+	            replayingIndex = 0;
+	        }
+	    }
+	    else {
+	        replayingIndex = 0;
+	    }
+	}
 	function getEvents() {
+	    return exports.options.frameCount > 0 ? getEventsFrameCount() : getEventsAllFrames();
+	}
+	exports.getEvents = getEvents;
+	function getEventsFrameCount() {
 	    if (replayingIndex === recordingIndex) {
 	        return false;
 	    }
@@ -114,12 +145,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    return e;
 	}
-	exports.getEvents = getEvents;
-	function calcStartingReplayIndex() {
-	    replayingIndex = recordingIndex + 1;
-	    if (replayingIndex >= exports.options.frameCount || events[replayingIndex] == null) {
-	        replayingIndex = 0;
+	function getEventsAllFrames() {
+	    if (replayingIndex >= events.length) {
+	        return false;
 	    }
+	    var e = events[replayingIndex];
+	    replayingIndex++;
+	    return e;
 	}
 	function objectToArray(object, propertyNames) {
 	    var array = [];
@@ -160,8 +192,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    var baseUrl = window.location.href.split('?')[0];
 	    calcStartingReplayIndex();
-	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify({ st: statuses[replayingIndex], ev: events, idx: recordingIndex }));
+	    var data = { st: statuses[replayingIndex] };
+	    if (exports.options.frameCount > 0) {
+	        data.idx = recordingIndex;
+	    }
+	    if (!exports.options.isRecordingEventsAsString) {
+	        data.ev = events;
+	    }
+	    else {
+	        data.esl = events[0].length;
+	    }
+	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(data));
 	    var url = baseUrl + "?d=" + encDataStr;
+	    if (exports.options.isRecordingEventsAsString) {
+	        var eventsDataStr = LZString.compressToEncodedURIComponent(events.join(''));
+	        url += "&e=" + eventsDataStr;
+	    }
+	    if (url.length > exports.options.maxUrlLength) {
+	        console.log('too long to record. url length: ' + url.length);
+	        return false;
+	    }
 	    try {
 	        window.history.replaceState({}, '', url);
 	    }
@@ -178,11 +228,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    var params = query.split('&');
 	    var encDataStr;
+	    var eventsDataStr;
 	    for (var i = 0; i < params.length; i++) {
 	        var param = params[i];
 	        var pair = param.split('=');
 	        if (pair[0] === 'd') {
 	            encDataStr = pair[1];
+	        }
+	        if (pair[0] === 'e') {
+	            eventsDataStr = pair[1];
 	        }
 	    }
 	    if (encDataStr == null) {
@@ -191,8 +245,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    try {
 	        var data = JSON.parse(LZString.decompressFromEncodedURIComponent(encDataStr));
 	        initStatusesAndEvents();
-	        recordingIndex = data.idx;
-	        events = data.ev;
+	        if (exports.options.frameCount > 0) {
+	            recordingIndex = data.idx;
+	        }
+	        if (data.ev != null) {
+	            events = data.ev;
+	        }
+	        if (eventsDataStr != null) {
+	            var eventsStr = LZString.decompressFromEncodedURIComponent(eventsDataStr);
+	            events = eventsStr.match(new RegExp(".{1," + data.esl + "}", 'g'));
+	        }
 	        calcStartingReplayIndex();
 	        statuses[replayingIndex] = data.st;
 	        return true;
@@ -797,6 +859,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    text.init(overlayContext);
 	    onSeedChanged(6008729);
 	    initCursorEvents();
+	    /*ir.setOptions({
+	      frameCount: -1,
+	      isRecordingEventsAsString: true
+	    });*/
 	    if (ir.loadFromUrl() === true) {
 	        beginReplay();
 	    }
@@ -807,9 +873,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	function beginGame() {
 	    scene = Scene.game;
-	    score = ticks = 0;
 	    sss.playBgm();
 	    ir.startRecord();
+	    if (ir.options.frameCount <= 0) {
+	        ir.recordInitialStatus(random.getStatus());
+	    }
+	    initGameStatus();
+	}
+	function initGameStatus() {
+	    score = ticks = 0;
 	    actors = [];
 	    setPlayer();
 	}
@@ -829,7 +901,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	function beginReplay() {
 	    var status = ir.startReplay();
 	    if (status !== false) {
-	        setStatus(status);
+	        if (ir.options.frameCount > 0) {
+	            setStatus(status);
+	        }
+	        else {
+	            random.setStatus(status);
+	            initGameStatus();
+	        }
 	        scene = Scene.replay;
 	    }
 	    else {
@@ -873,7 +951,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    isClicked = false;
 	    if (scene === Scene.game) {
-	        ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+	        var events = ir.options.isRecordingEventsAsString ?
+	            ('00' + frameCursorPos.x).slice(-3) + ('00' + frameCursorPos.y).slice(-3) :
+	            [frameCursorPos.x, frameCursorPos.y];
+	        if (ir.options.frameCount > 0) {
+	            ir.record(getStatus(), events);
+	        }
+	        else {
+	            ir.recordEvents(events);
+	        }
 	    }
 	    if (scene === Scene.gameover) {
 	        text.draw('GAME OVER', 40, 60);
@@ -892,8 +978,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        text.draw('REPLAY', 50, 70);
 	        var events = ir.getEvents();
 	        if (events !== false) {
-	            frameCursorPos.x = events[0];
-	            frameCursorPos.y = events[1];
+	            if (ir.options.isRecordingEventsAsString) {
+	                frameCursorPos.x = Number(events.substr(0, 3));
+	                frameCursorPos.y = Number(events.substr(3, 3));
+	            }
+	            else {
+	                frameCursorPos.x = events[0];
+	                frameCursorPos.y = events[1];
+	            }
 	        }
 	        else {
 	            beginTitle();

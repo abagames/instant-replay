@@ -41,6 +41,10 @@ window.onload = () => {
   text.init(overlayContext);
   onSeedChanged(6008729);
   initCursorEvents();
+  /*ir.setOptions({
+    frameCount: -1,
+    isRecordingEventsAsString: true
+  });*/
   if (ir.loadFromUrl() === true) {
     beginReplay();
   } else {
@@ -51,9 +55,16 @@ window.onload = () => {
 
 function beginGame() {
   scene = Scene.game;
-  score = ticks = 0;
   sss.playBgm();
   ir.startRecord();
+  if (ir.options.frameCount <= 0) {
+    ir.recordInitialStatus(random.getStatus());
+  }
+  initGameStatus();
+}
+
+function initGameStatus() {
+  score = ticks = 0;
   actors = [];
   setPlayer();
 }
@@ -76,7 +87,12 @@ function beginTitle() {
 function beginReplay() {
   const status = ir.startReplay();
   if (status !== false) {
-    setStatus(status);
+    if (ir.options.frameCount > 0) {
+      setStatus(status);
+    } else {
+      random.setStatus(status);
+      initGameStatus();
+    }
     scene = Scene.replay;
   } else {
     beginTitle();
@@ -120,7 +136,14 @@ function handleScene() {
   }
   isClicked = false;
   if (scene === Scene.game) {
-    ir.record(getStatus(), [frameCursorPos.x, frameCursorPos.y]);
+    const events = ir.options.isRecordingEventsAsString ?
+      ('00' + frameCursorPos.x).slice(-3) + ('00' + frameCursorPos.y).slice(-3) :
+      [frameCursorPos.x, frameCursorPos.y];
+    if (ir.options.frameCount > 0) {
+      ir.record(getStatus(), events);
+    } else {
+      ir.recordEvents(events);
+    }
   }
   if (scene === Scene.gameover) {
     text.draw('GAME OVER', 40, 60);
@@ -139,8 +162,13 @@ function handleScene() {
     text.draw('REPLAY', 50, 70);
     const events = ir.getEvents();
     if (events !== false) {
-      frameCursorPos.x = events[0];
-      frameCursorPos.y = events[1];
+      if (ir.options.isRecordingEventsAsString) {
+        frameCursorPos.x = Number(events.substr(0, 3));
+        frameCursorPos.y = Number(events.substr(3, 3));
+      } else {
+        frameCursorPos.x = events[0];
+        frameCursorPos.y = events[1];
+      }
     } else {
       beginTitle();
     }
