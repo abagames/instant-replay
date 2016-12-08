@@ -76,9 +76,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	var recordingIndex;
 	var replayingIndex;
 	function setOptions(_options) {
-	    exports.options = _options;
+	    forOwn(_options, function (v, k) {
+	        exports.options[k] = v;
+	    });
 	}
 	exports.setOptions = setOptions;
+	function forOwn(obj, func) {
+	    for (var p in obj) {
+	        func(obj[p], p);
+	    }
+	}
 	function startRecord() {
 	    initStatusesAndEvents();
 	    recordingIndex = replayingIndex = 0;

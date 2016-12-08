@@ -12,7 +12,15 @@ let recordingIndex: number;
 let replayingIndex: number;
 
 export function setOptions(_options) {
-  options = _options;
+  forOwn(_options, (v, k) => {
+    options[k] = v;
+  });
+}
+
+function forOwn(obj: any, func: Function) {
+  for (let p in obj) {
+    func(obj[p], p);
+  }
 }
 
 export function startRecord() {
