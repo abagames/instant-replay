@@ -217,6 +217,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    if (url.length > exports.options.maxUrlLength) {
 	        console.log('too long to record. url length: ' + url.length);
+	        try {
+	            window.history.replaceState({}, '', baseUrl);
+	        }
+	        catch (e) { }
 	        return false;
 	    }
 	    try {

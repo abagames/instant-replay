@@ -154,6 +154,9 @@ export function saveAsUrl() {
   }
   if (url.length > options.maxUrlLength) {
     console.log('too long to record. url length: ' + url.length);
+    try {
+      window.history.replaceState({}, '', baseUrl);
+    } catch (e) { }
     return false;
   }
   try {
