@@ -17,5 +17,6 @@ declare module 'ir' {
     frameCount?: number;
     isRecordingEventsAsString?: boolean;
     maxUrlLength?: number;
+    version?: string;
   }
 }

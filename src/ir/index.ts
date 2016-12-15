@@ -3,7 +3,8 @@ import * as LZString from 'lz-string';
 export let options = {
   frameCount: 180,
   isRecordingEventsAsString: false,
-  maxUrlLength: 2000
+  maxUrlLength: 2000,
+  version: '1'
 };
 
 let statuses: any[];
@@ -147,7 +148,7 @@ export function saveAsUrl() {
     data.esl = events[0].length;
   }
   const encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(data));
-  let url = `${baseUrl}?d=${encDataStr}`;
+  let url = `${baseUrl}?v=${options.version}&d=${encDataStr}`;
   if (options.isRecordingEventsAsString) {
     const eventsDataStr = LZString.compressToEncodedURIComponent(events.join(''));
     url += `&e=${eventsDataStr}`;
@@ -173,19 +174,21 @@ export function loadFromUrl() {
     return false;
   }
   let params = query.split('&');
+  let version: string;
   let encDataStr: string;
   let eventsDataStr: string;
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
     const pair = param.split('=');
-    if (pair[0] === 'd') {
+    if (pair[0] === 'v') {
+      version = pair[1];
+    } else if (pair[0] === 'd') {
       encDataStr = pair[1];
-    }
-    if (pair[0] === 'e') {
+    } else if (pair[0] === 'e') {
       eventsDataStr = pair[1];
     }
   }
-  if (encDataStr == null) {
+  if (version !== options.version || encDataStr == null) {
     return false;
   }
   try {

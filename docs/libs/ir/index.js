@@ -66,7 +66,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.options = {
 	    frameCount: 180,
 	    isRecordingEventsAsString: false,
-	    maxUrlLength: 2000
+	    maxUrlLength: 2000,
+	    version: '1'
 	};
 	var statuses;
 	var events;
@@ -207,7 +208,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        data.esl = events[0].length;
 	    }
 	    var encDataStr = LZString.compressToEncodedURIComponent(JSON.stringify(data));
-	    var url = baseUrl + "?d=" + encDataStr;
+	    var url = baseUrl + "?v=" + exports.options.version + "&d=" + encDataStr;
 	    if (exports.options.isRecordingEventsAsString) {
 	        var eventsDataStr = LZString.compressToEncodedURIComponent(events.join(''));
 	        url += "&e=" + eventsDataStr;
@@ -235,19 +236,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return false;
 	    }
 	    var params = query.split('&');
+	    var version;
 	    var encDataStr;
 	    var eventsDataStr;
 	    for (var i = 0; i < params.length; i++) {
 	        var param = params[i];
 	        var pair = param.split('=');
-	        if (pair[0] === 'd') {
+	        if (pair[0] === 'v') {
+	            version = pair[1];
+	        }
+	        else if (pair[0] === 'd') {
 	            encDataStr = pair[1];
 	        }
-	        if (pair[0] === 'e') {
+	        else if (pair[0] === 'e') {
 	            eventsDataStr = pair[1];
 	        }
 	    }
-	    if (encDataStr == null) {
+	    if (version !== exports.options.version || encDataStr == null) {
 	        return false;
 	    }
 	    try {
