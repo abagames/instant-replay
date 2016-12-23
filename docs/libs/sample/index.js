@@ -945,7 +945,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    ppe.update();
 	    drawBloomParticles();
-	    actors.sort(function (a, b) { return a.priority - b.priority; });
 	    forEach(actors, function (a) {
 	        a.update();
 	        drawPixels(a);
@@ -1059,7 +1058,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    player.getStatus = function () {
 	        return ir.objectToArray(this, propNames);
 	    };
-	    player.priority = 0;
 	    actors.push(player);
 	}
 	;
@@ -1138,7 +1136,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    laser.getStatus = function () {
 	        return ir.objectToArray(this, propNames);
 	    };
-	    laser.priority = 1;
 	    actors.push(laser);
 	}
 	function addScore() {

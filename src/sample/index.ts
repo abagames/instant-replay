@@ -114,7 +114,6 @@ function update() {
   }
   ppe.update();
   drawBloomParticles();
-  actors.sort((a, b) => a.priority - b.priority);
   forEach(actors, a => {
     a.update();
     drawPixels(a);
@@ -225,7 +224,6 @@ function setPlayer(status = null) {
   player.getStatus = function () {
     return ir.objectToArray(this, propNames);
   };
-  player.priority = 0;
   actors.push(player);
 };
 
@@ -298,7 +296,6 @@ function setLaser(status = null) {
   laser.getStatus = function () {
     return ir.objectToArray(this, propNames);
   };
-  laser.priority = 1;
   actors.push(laser);
 }
 
